@@ -9,8 +9,8 @@ The repository contains the completed **Stage 1 UI/UX milestone** and the first 
 | Stage | Purpose | Status |
 | --- | --- | --- |
 | [Stage 1](docs/stages/STAGE_1_UI_UX.md) | Product design and interactive interface | Complete |
-| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | In progress |
-| [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | Planned |
+| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | Implementation complete; live validation pending |
+| [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | In progress |
 
 ## Run locally
 
@@ -48,6 +48,8 @@ npm run lint
 - [Security, architecture, and scaling plan](docs/SECURITY_SCALING_PLAN.md)
 - [Architecture decisions](docs/DECISIONS.md)
 - [GitHub App setup](docs/GITHUB_APP_SETUP.md)
+- [Construction plan](docs/CONSTRUCTION_PLAN.md)
+- [Release runbook](docs/RELEASE_RUNBOOK.md)
 
 ## Current deployment
 

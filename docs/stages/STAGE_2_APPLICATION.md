@@ -15,12 +15,16 @@ Completed in the first Stage 2 increment:
 - A three-step setup interface for GitHub connection, repository selection, and schedule configuration.
 - GitHub App configuration and database migration documentation.
 
-Next increment:
+Completed in the automation increment:
 
-- Mint short-lived installation tokens and synchronize repositories approved in the GitHub App installation.
-- Persist repository selections and the first bounded activity-report schedule.
-- Add signed webhook handling, replay protection, and delivery deduplication.
-- Enqueue the first dry-run automation and show its audit entry without writing repository content.
+- Short-lived installation tokens and synchronization of GitHub-approved repositories.
+- Persistent repository selection without deleting historical records when access is disabled.
+- Schedule validation and the bounded `.commitkeep/activity.md` daily rule.
+- Signed webhook handling and delivery deduplication.
+- Non-writing access tests and account-owned run history.
+- Idempotent daily execution, branch-head rechecks, unchanged-content skips, and conflict outcomes.
+
+Live validation remains blocked on GitHub App credentials and a dedicated test repository. It is a release gate rather than an unfinished code path.
 
 ## Workstreams
 

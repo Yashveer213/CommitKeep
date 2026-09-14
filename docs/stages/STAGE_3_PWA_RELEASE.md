@@ -13,6 +13,17 @@ Ship an installable, observable application whose server-side automations keep r
 - No caching of access tokens, GitHub responses containing private code, or authenticated API responses by default.
 - Optional push notifications for meaningful failures, required action, or completed commits.
 
+## Current progress
+
+- Installable manifest, standalone metadata, and production service-worker registration.
+- Versioned shell cache that excludes every `/api/` response and uses network-first navigation.
+- Security headers covering content types, referrers, browser permissions, framing, and content sources.
+- Server-only scheduler endpoint protected by a dedicated secret.
+- Release, rollback, incident, migration, and backup procedures documented.
+- Hosting kept portable at the UI layer while durable automation remains on Cloudflare.
+
+Before public release, the manual device, accessibility, load, recovery, and live GitHub test matrix in the release runbook must pass.
+
 ## Reliability and release scope
 
 - Development, staging, and production isolation.
@@ -29,4 +40,3 @@ Ship an installable, observable application whose server-side automations keep r
 - Automations run independently of browser/PWA state.
 - Load targets and service-level objectives in the construction plan are met.
 - Security and recovery release gates are signed off.
-

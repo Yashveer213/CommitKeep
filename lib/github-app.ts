@@ -75,3 +75,42 @@ export async function getGitHubInstallation(installationId: string) {
   if (!response.ok) throw new Error(`GITHUB_INSTALLATION_LOOKUP_${response.status}`);
   return response.json() as Promise<GitHubInstallation>;
 }
+
+export async function createInstallationToken(installationId: string) {
+  const config = getGitHubAppConfig();
+  if (!config) throw new Error("GITHUB_APP_NOT_CONFIGURED");
+  const jwt = await createAppJwt(config.appId, config.privateKey);
+  const response = await fetch(`https://api.github.com/app/installations/${encodeURIComponent(installationId)}/access_tokens`, {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${jwt}`,
+      "User-Agent": "CommitKeep",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!response.ok) throw new Error(`GITHUB_TOKEN_CREATE_${response.status}`);
+  return response.json() as Promise<{ token: string; expires_at: string }>;
+}
+
+export async function githubInstallationRequest<T>(installationId: string, path: string, init?: RequestInit) {
+  const response = await githubInstallationFetch(installationId, path, init);
+  if (!response.ok) throw new Error(`GITHUB_API_${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+export async function githubInstallationFetch(installationId: string, path: string, init?: RequestInit) {
+  const { token } = await createInstallationToken(installationId);
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "User-Agent": "CommitKeep",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...init?.headers,
+    },
+  });
+  return response;
+}

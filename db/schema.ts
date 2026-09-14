@@ -81,3 +81,9 @@ export const runs = sqliteTable("runs", {
   uniqueIndex("runs_idempotency_key_unique").on(table.idempotencyKey),
   index("runs_owner_created_at_idx").on(table.ownerId, table.createdAt),
 ]);
+
+export const webhookDeliveries = sqliteTable("webhook_deliveries", {
+  id: text("id").primaryKey(),
+  event: text("event").notNull(),
+  receivedAt: text("received_at").notNull(),
+}, (table) => [index("webhook_deliveries_received_at_idx").on(table.receivedAt)]);

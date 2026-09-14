@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import PwaRegistration from "./pwa-registration";
 
 export const metadata: Metadata = {
   title: "Commitkeep — Repository workspace",
@@ -8,6 +9,8 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "CommitKeep" },
 };
 
 export default function RootLayout({
@@ -17,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<PwaRegistration /></body>
     </html>
   );
 }
