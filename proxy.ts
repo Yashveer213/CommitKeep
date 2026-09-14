@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isCrossSiteMutation } from "@/lib/request-policy";
 
 export function proxy(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (isCrossSiteMutation(request.method, origin, request.nextUrl.origin, fetchSite)) {
+    return NextResponse.json({ error: "Cross-site request rejected." }, { status: 403 });
+  }
   const response = NextResponse.next();
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

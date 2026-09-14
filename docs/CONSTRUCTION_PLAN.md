@@ -14,7 +14,8 @@ The browser provides setup, history, and PWA installation. Server routes enforce
 - Automated changes are restricted to `.commitkeep/activity.md`, one file per run, with branch-head rechecks and daily idempotency.
 - Web drafts are restricted to `.commitkeep/notes/*.md`, capped at 100 KB, and require the user to commit the exact latest preview version.
 - API responses are excluded from the service-worker cache. Routine logs exclude file content and personal identifiers.
-- Account deletion will revoke application access and remove owned records under the documented retention policy before public release.
+- Account deletion requires an explicit `DELETE` confirmation, revokes GitHub installations first, and then removes owned records through database cascades. It stops if revocation cannot be verified.
+- Unsafe browser requests with a foreign Origin or `cross-site` fetch context are rejected before reaching mutation routes.
 
 ## Scaling path
 

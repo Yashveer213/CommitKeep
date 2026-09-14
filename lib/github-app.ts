@@ -76,6 +76,17 @@ export async function getGitHubInstallation(installationId: string) {
   return response.json() as Promise<GitHubInstallation>;
 }
 
+export async function deleteGitHubInstallation(installationId: string) {
+  const config = getGitHubAppConfig();
+  if (!config) throw new Error("GITHUB_APP_NOT_CONFIGURED");
+  const jwt = await createAppJwt(config.appId, config.privateKey);
+  const response = await fetch(`https://api.github.com/app/installations/${encodeURIComponent(installationId)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${jwt}`, "User-Agent": "CommitKeep", "X-GitHub-Api-Version": "2022-11-28" },
+  });
+  if (!response.ok && response.status !== 404) throw new Error(`GITHUB_INSTALLATION_DELETE_${response.status}`);
+}
+
 export async function createInstallationToken(installationId: string) {
   const config = getGitHubAppConfig();
   if (!config) throw new Error("GITHUB_APP_NOT_CONFIGURED");

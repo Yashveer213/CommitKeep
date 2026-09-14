@@ -46,6 +46,7 @@ npm run start
 - Lucide React icons
 - Drizzle ORM for the Stage 2 database layer
 - Cloudflare Workers tooling
+- Vitest for deterministic policy and security tests
 
 The exact versions are locked in `package-lock.json`; use `npm ci` so every machine installs the same dependency graph.
 

@@ -22,6 +22,8 @@ Ship an installable, observable application whose server-side automations keep r
 - A separate Cron Trigger Worker that runs independently of the browser and PWA lifecycle.
 - Release, rollback, incident, migration, and backup procedures documented.
 - Hosting kept portable at the UI layer while durable automation remains on Cloudflare.
+- Cross-site mutation rejection and a verified account-deletion path that revokes GitHub access before erasing owned data.
+- Automated policy tests for timezone scheduling, deterministic report content, and cross-site request decisions.
 
 Stage 3 implementation is complete. Before public release, the manual device, accessibility, load, recovery, and live GitHub test matrix in the release runbook must pass against deployed staging infrastructure.
 

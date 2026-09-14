@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, Plus, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
@@ -33,6 +33,8 @@ export default function Dashboard({ account }: { account: string | null }) {
   const [saving, setSaving] = useState(false);
   const [draftName, setDraftName] = useState('daily-notes');
   const [draftContent, setDraftContent] = useState('');
+  const [accountDialog, setAccountDialog] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   useEffect(() => {
     if (!account) return;
@@ -141,11 +143,19 @@ export default function Dashboard({ account }: { account: string | null }) {
     setTab('history');
   }
 
+  async function deleteAccount() {
+    setSaving(true); setConnectionError('');
+    const response = await fetch('/api/account', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: deleteConfirmation }) });
+    const result = await response.json() as { error?: string };
+    if (!response.ok) { setSaving(false); setConnectionError(result.error ?? 'Account deletion could not be completed.'); return; }
+    router.push('/signout-with-chatgpt?return_to=/');
+  }
+
   return (
     <div className="shell">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="CommitKeep home"><span className="brandmark"><GitBranch size={21} strokeWidth={1.7} /></span>commitkeep</Link>
-        <div className="account"><span className="avatar">{account?.slice(0, 1).toUpperCase() ?? 'Y'}</span><span>{account ?? 'Your workspace'}</span></div>
+        <button className="account account-button" onClick={() => setAccountDialog(true)}><span className="avatar">{account?.slice(0, 1).toUpperCase() ?? 'Y'}</span><span>{account ?? 'Your workspace'}</span></button>
       </header>
 
       <main>
@@ -251,6 +261,9 @@ export default function Dashboard({ account }: { account: string | null }) {
           </div>
           <p className="dialog-footnote">No repository content is changed during setup.</p>
         </DialogContent>
+      </Dialog>
+      <Dialog open={accountDialog} onOpenChange={setAccountDialog}>
+        <DialogContent className="connect-dialog"><span className="dialog-icon"><Trash2 size={22} /></span><DialogTitle>Delete CommitKeep account</DialogTitle><DialogDescription>This revokes CommitKeep’s GitHub installations and permanently removes your repositories, schedules, drafts, and history from CommitKeep.</DialogDescription><div className="setup-fields"><label>Type DELETE to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label></div>{connectionError && <p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={() => setAccountDialog(false)}>Cancel</button><button className="primary" disabled={saving || deleteConfirmation !== 'DELETE'} onClick={deleteAccount}>{saving ? 'Deleting…' : 'Delete account'}</button></div></DialogContent>
       </Dialog>
     </div>
   );

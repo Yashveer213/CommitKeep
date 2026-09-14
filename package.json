@@ -15,7 +15,8 @@
     "scheduler:dev": "wrangler dev --config wrangler.scheduler.jsonc --test-scheduled",
     "scheduler:deploy": "wrangler deploy --config wrangler.scheduler.jsonc",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run build && node --check public/sw.js && wrangler deploy --dry-run --config wrangler.scheduler.jsonc"
+    "test": "vitest run --config vitest.config.ts",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && node --check public/sw.js && wrangler deploy --dry-run --config wrangler.scheduler.jsonc"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -46,6 +47,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "4.20260515.1",
+    "@rolldown/binding-win32-x64-msvc": "^1.0.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
@@ -61,6 +63,7 @@
     "typescript": "5.9.3",
     "vinext": "1.0.0-beta.5",
     "vite": "8.0.13",
+    "vitest": "^5.0.0",
     "wrangler": "4.92.0"
   },
   "type": "module",
