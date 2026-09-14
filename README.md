@@ -2,14 +2,14 @@
 
 CommitKeep is a planned installable web app that connects to selected GitHub repositories, performs useful scheduled content updates, saves pending work, and keeps an account-owned record of every run and commit.
 
-The repository currently contains the **Stage 1 UI/UX milestone**. GitHub authorization, real repository writes, scheduling, and durable history are intentionally deferred to Stage 2.
+The repository contains the completed **Stage 1 UI/UX milestone** and the first **Stage 2 application foundation**. Stage 2 now includes the account-owned data model, GitHub App installation handshake, workspace API, database migration, and three-step setup interface. Repository synchronization and automation execution are the next increments.
 
 ## Project status
 
 | Stage | Purpose | Status |
 | --- | --- | --- |
-| [Stage 1](docs/stages/STAGE_1_UI_UX.md) | Product design and interactive interface | In progress |
-| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | Planned |
+| [Stage 1](docs/stages/STAGE_1_UI_UX.md) | Product design and interactive interface | Complete |
+| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | In progress |
 | [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | Planned |
 
 ## Run locally
@@ -21,7 +21,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by the development server. The current interface labels simulated areas as a UI preview and does not access GitHub.
+Open the local URL printed by the development server. GitHub connection stays disabled until a GitHub App and D1 database are configured.
 
 ## Useful commands
 
@@ -47,6 +47,7 @@ npm run lint
 - [Domain plan](docs/DOMAIN.md)
 - [Security, architecture, and scaling plan](docs/SECURITY_SCALING_PLAN.md)
 - [Architecture decisions](docs/DECISIONS.md)
+- [GitHub App setup](docs/GITHUB_APP_SETUP.md)
 
 ## Current deployment
 
