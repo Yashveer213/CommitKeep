@@ -4,6 +4,6 @@
   "main": "workers/scheduler.ts",
   "compatibility_date": "2026-09-14",
   "triggers": { "crons": ["*/5 * * * *"] },
-  "vars": { "API_BASE_URL": "https://YOUR-APP-URL" },
+  "vars": { "API_BASE_URL": "https://commitkeep-staging.mkyash40.workers.dev" },
   "observability": { "enabled": true }
 }

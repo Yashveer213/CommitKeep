@@ -27,6 +27,8 @@ Ship an installable, observable application whose server-side automations keep r
 
 Stage 3 implementation is complete. Before public release, the manual device, accessibility, load, recovery, and live GitHub test matrix in the release runbook must pass against deployed staging infrastructure.
 
+The staging Worker, APAC D1 database, and five-minute scheduler are deployed. Runtime headers, private cache behavior, authentication rejection, manifest delivery, and offline document delivery have been verified. GitHub App and cross-account live tests remain release gates.
+
 ## Reliability and release scope
 
 - Development, staging, and production isolation.

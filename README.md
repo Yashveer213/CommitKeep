@@ -50,6 +50,7 @@ npm run lint
 - [GitHub App setup](docs/GITHUB_APP_SETUP.md)
 - [Construction plan](docs/CONSTRUCTION_PLAN.md)
 - [Release runbook](docs/RELEASE_RUNBOOK.md)
+- [Deployment record](docs/DEPLOYMENTS.md)
 
 ## Current deployment
 
