@@ -36,7 +36,7 @@ export default function Dashboard({ account }: { account: string | null }) {
     let active = true;
     fetch('/api/workspace', { headers: { Accept: 'application/json' } })
       .then(async (response) => {
-        if (!response.ok) throw new Error((await response.json()).error ?? 'Workspace could not be loaded.');
+        if (!response.ok) throw new Error(((await response.json()) as { error?: string }).error ?? 'Workspace could not be loaded.');
         return response.json() as Promise<Workspace>;
       })
       .then((data) => { if (active) setWorkspace(data); })
@@ -57,8 +57,8 @@ export default function Dashboard({ account }: { account: string | null }) {
   useEffect(() => {
     if (!connect || step !== 2 || !workspace.github.connected) return;
     fetch('/api/repositories').then(async (response) => {
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      const result = await response.json() as { error?: string; repositories: AvailableRepository[] };
+      if (!response.ok) throw new Error(result.error ?? 'Repositories could not be loaded.');
       return result as { repositories: AvailableRepository[] };
     }).then(({ repositories }) => {
       setAvailableRepositories(repositories);
@@ -80,16 +80,16 @@ export default function Dashboard({ account }: { account: string | null }) {
       router.push('/api/github/connect');
       return;
     }
-    const result = await response.json().catch(() => ({ error: 'GitHub connection could not start.' }));
-    setConnectionError(result.error);
+    const result = await response.json().catch(() => ({ error: 'GitHub connection could not start.' })) as { error?: string };
+    setConnectionError(result.error ?? 'GitHub connection could not start.');
   }
 
   async function saveRepositories() {
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/repositories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryIds: selectedRepositoryIds }) });
-    const result = await response.json();
+    const result = await response.json() as { error?: string; repositories: Workspace['repositories'] };
     setSaving(false);
-    if (!response.ok) { setConnectionError(result.error); return; }
+    if (!response.ok) { setConnectionError(result.error ?? 'Repositories could not be saved.'); return; }
     setWorkspace((current) => ({ ...current, repositories: result.repositories }));
     setStep(3);
   }
@@ -99,9 +99,9 @@ export default function Dashboard({ account }: { account: string | null }) {
     if (!repository) return;
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId: repository.id, mode, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
-    const result = await response.json();
+    const result = await response.json() as { error?: string; id: string };
     setSaving(false);
-    if (!response.ok) { setConnectionError(result.error); return; }
+    if (!response.ok) { setConnectionError(result.error ?? 'The schedule could not be created.'); return; }
     setWorkspace((current) => ({ ...current, schedules: [...current.schedules, { id: result.id, repositoryId: repository.id, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, enabled: true }] }));
     setConnect(false);
   }
@@ -109,8 +109,8 @@ export default function Dashboard({ account }: { account: string | null }) {
   async function runDryCheck(repositoryId: string) {
     setConnectionError('');
     const response = await fetch('/api/runs/dry-run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId }) });
-    const result = await response.json();
-    if (!response.ok) { setConnectionError(result.error); return; }
+    const result = await response.json() as { error?: string; run: Workspace['runs'][number] };
+    if (!response.ok) { setConnectionError(result.error ?? 'The access check could not run.'); return; }
     setWorkspace((current) => ({ ...current, runs: [result.run, ...current.runs] }));
     setTab('history');
   }

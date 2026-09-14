@@ -11,7 +11,8 @@ Use separate Cloudflare accounts or isolated resources for development, staging,
 3. Deploy the application code to staging and complete desktop and mobile PWA install/upgrade checks.
 4. Apply forward-compatible migrations to production.
 5. Deploy the tested revision and perform a dry run against the dedicated test repository.
-6. Enable the scheduler, observe one successful window, and then announce the release.
+6. Set `API_BASE_URL` in `wrangler.scheduler.jsonc`, add `SCHEDULER_SECRET` to both Workers through their secret managers, and deploy with `npm run scheduler:deploy`.
+7. Enable the scheduler, observe one successful window, and then announce the release.
 
 ## Rollback
 

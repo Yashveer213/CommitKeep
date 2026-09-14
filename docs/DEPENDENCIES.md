@@ -24,6 +24,12 @@ Build the production bundle with:
 npm run build
 ```
 
+Run the full local release verification with:
+
+```bash
+npm run verify
+```
+
 Preview that bundle locally with:
 
 ```bash
@@ -50,7 +56,7 @@ These are services and credentials, not npm packages:
 - A GitHub App with repository Contents permission and the narrowest additional permissions required by the final flows.
 - Separate development, staging, and production GitHub App registrations.
 - Cloudflare D1 for structured user-owned records.
-- Cloudflare Queues or Workflows for durable automation jobs.
+- A Cloudflare Cron Trigger for the included scheduler Worker. Add Queues or Workflows as job volume grows.
 - Encrypted runtime secrets for GitHub App credentials and token-wrapping keys.
 
 Never commit `.env` files, private keys, GitHub tokens, database exports, or production logs.
@@ -58,4 +64,3 @@ Never commit `.env` files, private keys, GitHub tokens, database exports, or pro
 ## Windows troubleshooting
 
 If a fresh Windows install reports a missing native Rolldown binding, first remove only the incomplete `node_modules` directory and run `npm ci` again with a supported Node.js version. Do not delete `package-lock.json` as a routine fix.
-

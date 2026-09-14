@@ -11,7 +11,11 @@
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "scheduler:dev": "wrangler dev --config wrangler.scheduler.jsonc --test-scheduled",
+    "scheduler:deploy": "wrangler deploy --config wrangler.scheduler.jsonc",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm run build && node --check public/sw.js && wrangler deploy --dry-run --config wrangler.scheduler.jsonc"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
