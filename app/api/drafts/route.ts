@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     await db.update(drafts).set({ content: parsed.data.content, updatedAt: now }).where(eq(drafts.id, existing.id));
     return Response.json({ draft: { ...existing, content: parsed.data.content, updatedAt: now } });
   }
-  const draft = { id: crypto.randomUUID(), ownerId: account.userId, repositoryId: repository.id, path, content: parsed.data.content, status: "pending" as const, createdAt: now, updatedAt: now, committedAt: null };
+  const draft = { id: crypto.randomUUID(), ownerId: account.userId, repositoryId: repository.id, path, content: parsed.data.content, status: "pending" as const, claimToken: null, createdAt: now, updatedAt: now, committedAt: null };
   await db.insert(drafts).values(draft);
   return Response.json({ draft }, { status: 201 });
 }

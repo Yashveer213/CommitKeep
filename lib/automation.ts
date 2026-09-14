@@ -23,8 +23,10 @@ export async function executeActivityReport(schedule: Schedule, repository: Repo
   const runId = crypto.randomUUID();
   try {
     await db.insert(runs).values({ id: runId, ownerId: schedule.ownerId, repositoryId: repository.id, scheduleId: schedule.id, source: "automatic", outcome: "running", summary: "Preparing the daily repository activity report.", branch: repository.defaultBranch, baseSha: null, resultSha: null, commitUrl: null, changedPathsJson: "[]", errorCode: null, idempotencyKey, createdAt: now.toISOString(), completedAt: null });
-  } catch {
-    return { outcome: "duplicate" as const };
+  } catch (error) {
+    const [existing] = await db.select({ id: runs.id }).from(runs).where(eq(runs.idempotencyKey, idempotencyKey)).limit(1);
+    if (existing) return { outcome: "duplicate" as const };
+    throw error;
   }
 
   const finish = async (values: Partial<typeof runs.$inferInsert>) => {
