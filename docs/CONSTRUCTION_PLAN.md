@@ -12,6 +12,7 @@ The browser provides setup, history, and PWA installation. Server routes enforce
 - Repository access is checked against the current installation before selection and execution.
 - Webhooks use HMAC-SHA256 verification and unique delivery IDs.
 - Automated changes are restricted to `.commitkeep/activity.md`, one file per run, with branch-head rechecks and daily idempotency.
+- Web drafts are restricted to `.commitkeep/notes/*.md`, capped at 100 KB, and require the user to commit the exact latest preview version.
 - API responses are excluded from the service-worker cache. Routine logs exclude file content and personal identifiers.
 - Account deletion will revoke application access and remove owned records under the documented retention policy before public release.
 

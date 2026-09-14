@@ -60,6 +60,21 @@ export const schedules = sqliteTable("schedules", {
   updatedAt: text("updated_at").notNull(),
 }, (table) => [index("schedules_owner_id_idx").on(table.ownerId)]);
 
+export const drafts = sqliteTable("drafts", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  repositoryId: text("repository_id").notNull().references(() => repositories.id, { onDelete: "cascade" }),
+  path: text("path").notNull(),
+  content: text("content").notNull(),
+  status: text("status", { enum: ["pending", "committed", "discarded"] }).notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  committedAt: text("committed_at"),
+}, (table) => [
+  index("drafts_owner_status_idx").on(table.ownerId, table.status),
+  index("drafts_repository_path_status_idx").on(table.repositoryId, table.path, table.status),
+]);
+
 export const runs = sqliteTable("runs", {
   id: text("id").primaryKey(),
   ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),

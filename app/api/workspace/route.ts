@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
-import { githubInstallations, repositories, runs, schedules, users } from "@/db/schema";
+import { drafts, githubInstallations, repositories, runs, schedules, users } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +19,12 @@ export async function GET() {
     updatedAt: now,
   }).onConflictDoUpdate({ target: users.id, set: { displayName: account.displayName, email: account.email, updatedAt: now } });
 
-  const [installationRows, repositoryRows, scheduleRows, runRows] = await Promise.all([
+  const [installationRows, repositoryRows, scheduleRows, runRows, draftRows] = await Promise.all([
     db.select({ installationId: githubInstallations.installationId, accountLogin: githubInstallations.accountLogin, status: githubInstallations.status }).from(githubInstallations).where(eq(githubInstallations.ownerId, account.userId)),
     db.select().from(repositories).where(eq(repositories.ownerId, account.userId)),
     db.select().from(schedules).where(eq(schedules.ownerId, account.userId)),
     db.select().from(runs).where(eq(runs.ownerId, account.userId)).orderBy(desc(runs.createdAt)).limit(50),
+    db.select({ id: drafts.id, repositoryId: drafts.repositoryId, path: drafts.path, preview: drafts.content, updatedAt: drafts.updatedAt }).from(drafts).where(and(eq(drafts.ownerId, account.userId), eq(drafts.status, "pending"))).orderBy(desc(drafts.updatedAt)).limit(50),
   ]);
 
   return Response.json({
@@ -32,5 +33,6 @@ export async function GET() {
     repositories: repositoryRows,
     schedules: scheduleRows,
     runs: runRows,
+    drafts: draftRows.map((draft) => ({ ...draft, preview: draft.preview.slice(0, 240) })),
   });
 }

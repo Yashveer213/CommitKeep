@@ -12,10 +12,11 @@ type Workspace = {
   repositories: { id: string; fullName: string; defaultBranch: string; enabled: boolean }[];
   schedules: { id: string; repositoryId: string; localTime: string; timezone: string; enabled: boolean }[];
   runs: { id: string; source: string; outcome: string; summary: string; commitUrl: string | null; createdAt: string }[];
+  drafts: { id: string; repositoryId: string; path: string; preview: string; updatedAt: string }[];
 };
 type AvailableRepository = { id: string; fullName: string; defaultBranch: string; private: boolean; selected: boolean };
 
-const emptyWorkspace: Workspace = { github: { connected: false, installations: [] }, repositories: [], schedules: [], runs: [] };
+const emptyWorkspace: Workspace = { github: { connected: false, installations: [] }, repositories: [], schedules: [], runs: [], drafts: [] };
 
 export default function Dashboard({ account }: { account: string | null }) {
   const router = useRouter();
@@ -30,6 +31,8 @@ export default function Dashboard({ account }: { account: string | null }) {
   const [localTime, setLocalTime] = useState('09:00');
   const [mode, setMode] = useState<'update' | 'save' | 'both'>('both');
   const [saving, setSaving] = useState(false);
+  const [draftName, setDraftName] = useState('daily-notes');
+  const [draftContent, setDraftContent] = useState('');
 
   useEffect(() => {
     if (!account) return;
@@ -115,6 +118,29 @@ export default function Dashboard({ account }: { account: string | null }) {
     setTab('history');
   }
 
+  async function saveDraft() {
+    const repository = workspace.repositories[0];
+    if (!repository || !draftContent.trim()) return;
+    setSaving(true); setConnectionError('');
+    const response = await fetch('/api/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId: repository.id, name: draftName, content: draftContent }) });
+    const result = await response.json() as { error?: string; draft: Workspace['drafts'][number] & { content?: string } };
+    setSaving(false);
+    if (!response.ok) { setConnectionError(result.error ?? 'The draft could not be saved.'); return; }
+    const saved = { ...result.draft, preview: result.draft.content?.slice(0, 240) ?? draftContent.slice(0, 240) };
+    setWorkspace((current) => ({ ...current, drafts: [saved, ...current.drafts.filter((draft) => draft.id !== saved.id)] }));
+    setDraftContent('');
+  }
+
+  async function commitDraft(draft: Workspace['drafts'][number]) {
+    setSaving(true); setConnectionError('');
+    const response = await fetch('/api/drafts/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draftId: draft.id, expectedUpdatedAt: draft.updatedAt }) });
+    const result = await response.json() as { error?: string; run: Workspace['runs'][number] };
+    setSaving(false);
+    if (!response.ok) { setConnectionError(result.error ?? 'The draft could not be committed.'); return; }
+    setWorkspace((current) => ({ ...current, drafts: current.drafts.filter((item) => item.id !== draft.id), runs: [result.run, ...current.runs] }));
+    setTab('history');
+  }
+
   return (
     <div className="shell">
       <header className="topbar">
@@ -188,7 +214,9 @@ export default function Dashboard({ account }: { account: string | null }) {
             </TabsContent>
 
             <TabsContent value="work" forceMount className="workspace-view" inert={tab !== 'work'} aria-hidden={tab !== 'work'}>
-              <section className="panel empty"><div className="repo-icon"><Laptop size={29} strokeWidth={1.25} /></div><h2>Pick up where you left off</h2><p>Web drafts will be saved here. Local folders will connect through the desktop companion in a later Stage 2 increment.</p><button className="primary" onClick={() => setConnect(true)}>Start setup<ArrowRight size={16} /></button></section>
+              <section className={`panel ${workspace.repositories.length ? 'draft-panel' : 'empty'}`}>
+                {workspace.repositories.length ? <><div className="panel-heading"><div><span className="eyebrow">SAVED WORK</span><h2>Repository notes</h2></div></div><div className="draft-layout"><div className="draft-editor"><label>Note name<input value={draftName} maxLength={60} onChange={(event) => setDraftName(event.target.value)} /></label><label>Markdown content<textarea value={draftContent} maxLength={100000} rows={8} placeholder="Write or paste work you want to save…" onChange={(event) => setDraftContent(event.target.value)} /></label><button className="primary" disabled={saving || !draftContent.trim()} onClick={saveDraft}>{saving ? 'Saving…' : 'Save draft'}</button></div><div className="draft-list"><span className="eyebrow">PENDING PREVIEW</span>{workspace.drafts.length ? workspace.drafts.map((draft) => <article key={draft.id}><strong>{draft.path}</strong><p>{draft.preview}</p><button className="text-button" disabled={saving} onClick={() => commitDraft(draft)}>Commit this draft<ArrowRight size={14} /></button></article>) : <p>No pending drafts.</p>}</div></div></> : <><div className="repo-icon"><Laptop size={29} strokeWidth={1.25} /></div><h2>Pick up where you left off</h2><p>Connect a repository before saving a web draft.</p><button className="primary" onClick={() => setConnect(true)}>Start setup<ArrowRight size={16} /></button></>}
+              </section>
             </TabsContent>
           </div>
         </Tabs>

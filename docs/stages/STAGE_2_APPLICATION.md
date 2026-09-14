@@ -23,6 +23,7 @@ Completed in the automation increment:
 - Signed webhook handling and delivery deduplication.
 - Non-writing access tests and account-owned run history.
 - Idempotent daily execution, branch-head rechecks, unchanged-content skips, and conflict outcomes.
+- Account-owned web drafts under the fixed `.commitkeep/notes/` path, with size validation, preview-version checks, explicit commits, and saved-work audit records.
 
 Live validation remains blocked on GitHub App credentials and a dedicated test repository. It is a release gate rather than an unfinished code path.
 
