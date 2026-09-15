@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   target.searchParams.set("client_id", config.clientId);
   target.searchParams.set("redirect_uri", callback.toString());
   target.searchParams.set("state", state);
-  const response = Response.redirect(target, 302);
+  const response = new Response(null, { status: 302, headers: { Location: target.toString() } });
   response.headers.append("Set-Cookie", `commitkeep_oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
   return response;
 }

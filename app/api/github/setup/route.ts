@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   }
   await db.delete(githubConnectionStates).where(eq(githubConnectionStates.id, state));
 
-  const response = Response.redirect(new URL("/?github=connected", request.url), 302);
+  const response = new Response(null, { status: 302, headers: { Location: new URL("/?github=connected", request.url).toString() } });
   response.headers.append("Set-Cookie", "commitkeep_github_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
   return response;
 }

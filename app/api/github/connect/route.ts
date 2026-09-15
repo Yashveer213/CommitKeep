@@ -24,7 +24,7 @@ export async function GET() {
 
   const target = new URL(`https://github.com/apps/${config.slug}/installations/new`);
   target.searchParams.set("state", state);
-  const response = Response.redirect(target, 302);
+  const response = new Response(null, { status: 302, headers: { Location: target.toString() } });
   response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
   return response;
 }

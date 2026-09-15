@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   await db.insert(users).values({ id: userId, displayName: githubUser.name ?? githubUser.login, email: githubUser.email, createdAt: now.toISOString(), updatedAt: now.toISOString() }).onConflictDoUpdate({ target: users.id, set: { displayName: githubUser.name ?? githubUser.login, email: githubUser.email, updatedAt: now.toISOString() } });
   const sessionToken = crypto.randomUUID() + crypto.randomUUID();
   await db.insert(sessions).values({ tokenHash: await hashSessionToken(sessionToken), userId, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() });
-  const response = Response.redirect(new URL("/", request.url), 302);
+  const response = new Response(null, { status: 302, headers: { Location: new URL("/", request.url).toString() } });
   response.headers.append("Set-Cookie", `commitkeep_session=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`);
   response.headers.append("Set-Cookie", "commitkeep_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
   return response;
