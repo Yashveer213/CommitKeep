@@ -7,6 +7,7 @@ The browser provides setup, history, and PWA installation. Server routes enforce
 ## Data protection
 
 - GitHub App private keys, webhook secrets, and scheduler secrets stay in the runtime secret manager.
+- GitHub OAuth identifies standalone deployments. The temporary provider token is discarded after identity verification; CommitKeep stores a random session token only as a SHA-256 hash with a 30-day expiry.
 - Installation tokens are short-lived and created only on the server for a specific job.
 - Every repository, schedule, and run query includes the authenticated immutable owner ID.
 - Repository access is checked against the current installation before selection and execution.

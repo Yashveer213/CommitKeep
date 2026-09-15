@@ -6,6 +6,8 @@ Turn the approved prototype into a secure, multi-user application that performs 
 
 ## Current progress
 
+Standalone Cloudflare authentication now uses GitHub OAuth and hashed, expiring database sessions. Client-supplied identity headers are not accepted. Live OAuth validation requires the GitHub App client credentials.
+
 Completed in the first Stage 2 increment:
 
 - Account-owned D1 tables for users, installations, repositories, schedules, and runs.

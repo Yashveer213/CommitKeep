@@ -12,6 +12,13 @@ export function getGitHubAppConfig() {
   return { appId, slug, privateKey };
 }
 
+export function getGitHubOAuthConfig() {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
 function base64Url(value: string | ArrayBuffer) {
   const bytes = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
   let binary = "";

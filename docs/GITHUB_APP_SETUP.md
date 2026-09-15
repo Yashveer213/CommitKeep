@@ -8,6 +8,7 @@ Create a GitHub App under the GitHub account or organization that will own Commi
 
 - **GitHub App name:** a unique CommitKeep name
 - **Homepage URL:** the current deployed application URL
+- **Callback URL:** `https://YOUR-APP-URL/api/auth/github/callback`
 - **Setup URL:** `https://YOUR-APP-URL/api/github/setup`
 - **Redirect on update:** enabled
 - **Webhook:** active once the Stage 2 webhook endpoint is added
@@ -24,7 +25,9 @@ Do not request organization-wide administration, workflow, secrets, or user-data
 
 Add the variables listed in `config/env.example` through the deployment provider's secret manager. Never place the private key or webhook secret in Git, browser code, build-time public variables, or screenshots.
 
-The current Stage 2 connection flow is enabled only when `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and `GITHUB_APP_PRIVATE_KEY` are available. It verifies GitHub's installation response from the server before binding that installation to the signed-in CommitKeep account.
+Generate one GitHub App client secret. The sign-in flow also requires `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. It exchanges the temporary OAuth code on the server, stores only a hashed CommitKeep session token, and does not persist GitHub's user access token.
+
+The repository connection flow is enabled only when `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and `GITHUB_APP_PRIVATE_KEY` are available. It verifies GitHub's installation response from the server before binding that installation to the signed-in CommitKeep account.
 
 ## Database
 

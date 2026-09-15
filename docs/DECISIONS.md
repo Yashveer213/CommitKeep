@@ -1,5 +1,7 @@
 # Architecture decisions
 
+Standalone Workers deployments use GitHub OAuth with server-side sessions. Legacy host identity headers are untrusted on the public endpoint and are ignored.
+
 This file records decisions that should remain stable across stages. Change a decision through a pull request that explains the migration impact.
 
 | Decision | Choice | Reason |

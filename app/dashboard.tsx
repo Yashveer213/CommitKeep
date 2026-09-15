@@ -80,6 +80,7 @@ export default function Dashboard({ account }: { account: string | null }) {
 
   async function connectGitHub() {
     setConnectionError('');
+    if (!account) { router.push('/api/auth/github/start'); return; }
     const response = await fetch('/api/github/connect', { redirect: 'manual' });
     if (response.type === 'opaqueredirect' || response.status === 302) {
       router.push('/api/github/connect');
@@ -148,14 +149,15 @@ export default function Dashboard({ account }: { account: string | null }) {
     const response = await fetch('/api/account', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: deleteConfirmation }) });
     const result = await response.json() as { error?: string };
     if (!response.ok) { setSaving(false); setConnectionError(result.error ?? 'Account deletion could not be completed.'); return; }
-    router.push('/signout-with-chatgpt?return_to=/');
+    await fetch('/api/auth/signout', { method: 'POST' });
+    router.push('/'); router.refresh();
   }
 
   return (
     <div className="shell">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="CommitKeep home"><span className="brandmark"><GitBranch size={21} strokeWidth={1.7} /></span>commitkeep</Link>
-        <button className="account account-button" onClick={() => setAccountDialog(true)}><span className="avatar">{account?.slice(0, 1).toUpperCase() ?? 'Y'}</span><span>{account ?? 'Your workspace'}</span></button>
+        <button className="account account-button" onClick={() => account ? setAccountDialog(true) : router.push('/api/auth/github/start')}><span className="avatar">{account?.slice(0, 1).toUpperCase() ?? 'G'}</span><span>{account ?? 'Sign in with GitHub'}</span></button>
       </header>
 
       <main>
