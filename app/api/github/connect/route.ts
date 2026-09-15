@@ -17,22 +17,25 @@ export async function POST() {
   }
 
   const db = getDb();
+  const now = new Date();
+  const state = crypto.randomUUID();
+  await db.insert(users).values({ id: account.userId, displayName: account.displayName, email: account.email, githubLogin: account.githubLogin, avatarUrl: account.avatarUrl, createdAt: now.toISOString(), updatedAt: now.toISOString() })
+    .onConflictDoUpdate({ target: users.id, set: { displayName: account.displayName, email: account.email, githubLogin: account.githubLogin, avatarUrl: account.avatarUrl, updatedAt: now.toISOString() } });
+  await db.insert(githubConnectionStates).values({ id: state, ownerId: account.userId, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 10 * 60 * 1000).toISOString() });
   const [activeInstallation] = await db.select().from(githubInstallations).where(and(eq(githubInstallations.ownerId, account.userId), eq(githubInstallations.status, "active"))).limit(1);
   if (activeInstallation) {
     const installation = await getGitHubInstallation(activeInstallation.installationId);
     if (!installation.account || String(installation.account.id) !== activeInstallation.accountId) return Response.json({ error: "The GitHub installation owner could not be verified." }, { status: 409 });
     await db.update(githubInstallations).set({ htmlUrl: installation.html_url, updatedAt: new Date().toISOString() }).where(eq(githubInstallations.id, activeInstallation.id));
-    return Response.json({ redirectUrl: installation.html_url, existingInstallation: true, message: "GitHub may ask you to verify your identity before changing repository access." });
+    const target=new URL(installation.html_url);target.searchParams.set("state",state);
+    const response=Response.json({ redirectUrl: target.toString(), existingInstallation: true, message: "GitHub may ask you to verify your identity before changing repository access." });
+    response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
+    return response;
   }
-  const now = new Date();
-  const state = crypto.randomUUID();
-  await db.insert(users).values({ id: account.userId, displayName: account.displayName, email: account.email, createdAt: now.toISOString(), updatedAt: now.toISOString() })
-    .onConflictDoUpdate({ target: users.id, set: { displayName: account.displayName, email: account.email, updatedAt: now.toISOString() } });
-  await db.insert(githubConnectionStates).values({ id: state, ownerId: account.userId, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 10 * 60 * 1000).toISOString() });
 
   const target = new URL(`https://github.com/apps/${config.slug}/installations/new`);
   target.searchParams.set("state", state);
   const response = Response.json({ redirectUrl: target.toString() });
-  response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=600`);
+  response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
   return response;
 }

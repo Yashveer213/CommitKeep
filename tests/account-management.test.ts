@@ -19,6 +19,8 @@ describe("account and GitHub management", () => {
     const route=readFileSync(new URL("../app/api/github/connect/route.ts",import.meta.url),"utf8");
     expect(route).toContain("activeInstallation");
     expect(route).toContain("installation.html_url");
+    expect(route).toContain('target.searchParams.set("state",state)');
+    expect(route).toContain("SameSite=Lax");
     expect(route).toContain("installations/new");
   });
 });

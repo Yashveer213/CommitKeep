@@ -19,6 +19,12 @@ type AvailableRepository = { id: string; fullName: string; defaultBranch: string
 
 const emptyWorkspace: Workspace = { github: { connected: false, installations: [] }, repositories: [], schedules: [], runs: [], drafts: [] };
 
+async function readApiJson<T>(response:Response):Promise<T>{
+  const contentType=response.headers.get('content-type')??'';
+  if(!contentType.includes('application/json'))return {error:response.status===503?'Commit-Keep is temporarily unavailable. Please try again.':'The server returned an unexpected response.'} as T;
+  return response.json() as Promise<T>;
+}
+
 export default function Dashboard({ account }: { account: {displayName:string;githubLogin:string|null;avatarUrl:string|null} | null }) {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
@@ -95,7 +101,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
     setConnectionError('');
     if (!account) { router.push('/api/auth/github/start'); return; }
     const response = await fetch('/api/github/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-    const result = await response.json().catch(() => ({ error: 'GitHub connection could not start.' })) as { error?: string; redirectUrl?: string };
+    const result = await readApiJson<{ error?: string; redirectUrl?: string }>(response);
     if(response.ok&&result.redirectUrl){window.location.assign(result.redirectUrl);return;}
     setConnectionError(result.error ?? 'GitHub connection could not start.');
   }
@@ -103,7 +109,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
   async function saveRepositories() {
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/repositories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryIds: selectedRepositoryIds }) });
-    const result = await response.json() as { error?: string; repositories: Workspace['repositories'] };
+    const result = await readApiJson<{ error?: string; repositories: Workspace['repositories'] }>(response);
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'Repositories could not be saved.'); return; }
     setWorkspace((current) => ({ ...current, repositories: result.repositories }));
@@ -117,7 +123,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
     setSaving(true); setConnectionError('');
     const current=editScheduleId?workspace.schedules.find(item=>item.id===editScheduleId):null;
     const response = await fetch(editScheduleId?`/api/schedules/${editScheduleId}`:'/api/schedules', { method: editScheduleId?'PATCH':'POST', headers: { 'Content-Type': 'application/json', ...(editScheduleId?{}:{'Idempotency-Key': crypto.randomUUID()}) }, body: JSON.stringify(editScheduleId?{expectedVersion:current?.version,mode,times:dailyTimes,timezone,startDate,endDate:endDate||null}:{ repositoryIds, action, mode, times:dailyTimes, timezone, startDate, endDate:endDate||null, journalAcknowledged, organizationJournalEnabled:journalAcknowledged }) });
-    const result = await response.json() as { error?: string; id?:string;version?:number;times?:string[];schedules?: {id:string;repositoryId:string;version:number;times:string[]}[] };
+    const result = await readApiJson<{ error?: string; id?:string;version?:number;times?:string[];schedules?: {id:string;repositoryId:string;version:number;times:string[]}[] }>(response);
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The schedule could not be created.'); return; }
     const saved=result.schedules??[{id:result.id!,repositoryId:repositoryIds[0],version:result.version!,times:result.times!}];
@@ -126,13 +132,13 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
   }
 
   async function changeAutomation(action:'pause'|'resume'){
-    setSaving(true);setConnectionError('');const response=await fetch(`/api/automation/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repositoryIds:automationSelection})});const result=await response.json() as {error?:string;repositories?:{repositoryId:string;status:'active'|'paused'}[]};setSaving(false);if(!response.ok){setConnectionError(result.error??`Schedules could not be ${action}d.`);return;}setWorkspace(current=>({...current,repositories:current.repositories.map(repository=>{const changed=result.repositories?.find(item=>item.repositoryId===repository.id);return changed?{...repository,automationStatus:changed.status}:repository})}));setPauseDialog(null);setAutomationSelection([]);
+    setSaving(true);setConnectionError('');const response=await fetch(`/api/automation/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repositoryIds:automationSelection})});const result=await readApiJson<{error?:string;repositories?:{repositoryId:string;status:'active'|'paused'}[]}>(response);setSaving(false);if(!response.ok){setConnectionError(result.error??`Schedules could not be ${action}d.`);return;}setWorkspace(current=>({...current,repositories:current.repositories.map(repository=>{const changed=result.repositories?.find(item=>item.repositoryId===repository.id);return changed?{...repository,automationStatus:changed.status}:repository})}));setPauseDialog(null);setAutomationSelection([]);
   }
 
   async function runDryCheck(repositoryId: string) {
     setConnectionError('');
     const response = await fetch('/api/runs/dry-run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId }) });
-    const result = await response.json() as { error?: string; run: Workspace['runs'][number] };
+    const result = await readApiJson<{ error?: string; run: Workspace['runs'][number] }>(response);
     if (!response.ok) { setConnectionError(result.error ?? 'The access check could not run.'); return; }
     setWorkspace((current) => ({ ...current, runs: [result.run, ...current.runs] }));
     setTab('history');
@@ -143,7 +149,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
     if (!repository || !draftContent.trim()) return;
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId: repository.id, name: draftName, content: draftContent }) });
-    const result = await response.json() as { error?: string; draft: Workspace['drafts'][number] & { content?: string } };
+    const result = await readApiJson<{ error?: string; draft: Workspace['drafts'][number] & { content?: string } }>(response);
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The draft could not be saved.'); return; }
     const saved = { ...result.draft, preview: result.draft.content?.slice(0, 240) ?? draftContent.slice(0, 240) };
@@ -154,7 +160,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
   async function commitDraft(draft: Workspace['drafts'][number]) {
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/drafts/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draftId: draft.id, expectedUpdatedAt: draft.updatedAt }) });
-    const result = await response.json() as { error?: string; run: Workspace['runs'][number] };
+    const result = await readApiJson<{ error?: string; run: Workspace['runs'][number] }>(response);
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The draft could not be committed.'); return; }
     setWorkspace((current) => ({ ...current, drafts: current.drafts.filter((item) => item.id !== draft.id), runs: [result.run, ...current.runs] }));
@@ -164,7 +170,7 @@ export default function Dashboard({ account }: { account: {displayName:string;gi
   async function deleteAccount() {
     setSaving(true); setConnectionError('');
     const response = await fetch('/api/account', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmation: deleteConfirmation }) });
-    const result = await response.json() as { error?: string };
+    const result = await readApiJson<{ error?: string }>(response);
     if (!response.ok) { setSaving(false); setConnectionError(result.error ?? 'Account deletion could not be completed.'); return; }
     await fetch('/api/auth/signout', { method: 'POST' });
     router.push('/'); router.refresh();
