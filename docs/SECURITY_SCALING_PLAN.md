@@ -2,7 +2,7 @@
 
 ## 1. System boundary
 
-CommitKeep has four trust zones:
+Commit-Keep has four trust zones:
 
 1. The browser/PWA, which is untrusted and may be compromised.
 2. The public application/API edge, which authenticates and authorizes every request.

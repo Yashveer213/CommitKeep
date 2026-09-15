@@ -14,11 +14,13 @@
     "db:generate": "drizzle-kit generate",
     "scheduler:dev": "wrangler dev --config wrangler.scheduler.jsonc --test-scheduled",
     "scheduler:deploy": "wrangler deploy --config wrangler.scheduler.jsonc",
+    "jobs:deploy": "wrangler deploy --config wrangler.jobs.jsonc",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "deploy:staging": "npm run build && node scripts/prepare-staging-config.mjs && wrangler deploy --config dist/server/wrangler.staging.json",
     "db:migrate:staging": "wrangler d1 migrations apply commitkeep-staging --remote --config wrangler.app.staging.jsonc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run build && node --check public/sw.js && wrangler deploy --dry-run --config wrangler.scheduler.jsonc"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && node --check public/sw.js && wrangler deploy --dry-run --config wrangler.scheduler.jsonc && wrangler deploy --dry-run --config wrangler.jobs.jsonc"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

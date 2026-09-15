@@ -49,7 +49,7 @@ export async function executeActivityReport(schedule: Schedule, repository: Repo
     else if (contentResponse.status !== 404) throw new Error(`GITHUB_CONTENT_READ_${contentResponse.status}`);
     if (existing?.encoding === "base64" && atob(existing.content.replace(/\n/g, "")) === report) return finish({ outcome: "skipped", summary: "The daily report already matches repository activity.", baseSha: initialHead.object.sha });
     const currentHead = await githubInstallationRequest<{ object: { sha: string } }>(repository.installationId, `/repos/${encodedName}/git/ref/heads/${encodeURIComponent(repository.defaultBranch)}`);
-    if (currentHead.object.sha !== initialHead.object.sha) return finish({ outcome: "conflict", summary: "The branch changed while the report was prepared, so CommitKeep stopped safely.", baseSha: initialHead.object.sha, errorCode: "BRANCH_HEAD_CHANGED" });
+    if (currentHead.object.sha !== initialHead.object.sha) return finish({ outcome: "conflict", summary: "The branch changed while the report was prepared, so Commit-Keep stopped safely.", baseSha: initialHead.object.sha, errorCode: "BRANCH_HEAD_CHANGED" });
     const writeResponse = await githubInstallationFetch(repository.installationId, `/repos/${encodedName}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: `chore(commitkeep): update activity report for ${local.day}`, content: utf8Base64(report), branch: repository.defaultBranch, ...(existing ? { sha: existing.sha } : {}) }) });
     if (!writeResponse.ok) throw new Error(`GITHUB_CONTENT_WRITE_${writeResponse.status}`);
     const result = await writeResponse.json() as { commit: { sha: string; html_url: string } };

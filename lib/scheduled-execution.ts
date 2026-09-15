@@ -9,6 +9,12 @@ function database(){if(!env.DB)throw new Error("DATABASE_NOT_CONFIGURED");return
 function utf8Base64(value:string){const bytes=new TextEncoder().encode(value);let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary);}
 function decode(value:string){return new TextDecoder().decode(Uint8Array.from(atob(value.replace(/\n/g,"")),c=>c.charCodeAt(0)));}
 
+async function remoteContentMatches(installationId:string,encoded:string,path:string,branch:string,expected:string){
+  const response=await githubInstallationFetch(installationId,`/repos/${encoded}/contents/${path}?ref=${encodeURIComponent(branch)}`);
+  if(!response.ok)return false;const file=await response.json() as ContentFile;
+  return file.encoding==="base64"&&Boolean(file.content)&&decode(file.content!)===expected;
+}
+
 async function finish(row:JobRow, runId:string, outcome:string, summary:string, extra:{baseSha?:string;resultSha?:string;commitUrl?:string;errorCode?:string;paths?:string[]}={}){
   const now=new Date().toISOString();
   const db=database();await db.batch([
@@ -59,8 +65,13 @@ export async function executeScheduledOccurrence(occurrenceId:string,runId:strin
     if(!await leaseValid(row,runId,fencingToken))throw new Error("LEASE_FENCE_LOST");
     const rechecked=await githubInstallationRequest<{object:{sha:string}}>(row.installation_id,`/repos/${encoded}/git/ref/heads/${encodeURIComponent(row.default_branch)}`);
     if(rechecked.object.sha!==head.object.sha)return finish(row,runId,"conflicted","The branch changed before the scheduled write.",{baseSha:head.object.sha,errorCode:"BRANCH_HEAD_CHANGED"});
-    const write=await githubInstallationFetch(row.installation_id,`/repos/${encoded}/contents/${path}`,{method:"PUT",body:JSON.stringify({message:`chore(commitkeep): update activity report for ${row.local_date}`,content:utf8Base64(report),branch:row.default_branch,...(file?{sha:file.sha}:{})})});
-    if(!write.ok){const retry=write.headers.get("retry-after");const error=new Error(`GITHUB_CONTENT_WRITE_${write.status}`);(error as Error&{retryAfter?:string}).retryAfter=retry??undefined;throw error;}
+    let write:Response;
+    try{write=await githubInstallationFetch(row.installation_id,`/repos/${encoded}/contents/${path}`,{method:"PUT",body:JSON.stringify({message:`chore(commitkeep): update activity report for ${row.local_date}`,content:utf8Base64(report),branch:row.default_branch,...(file?{sha:file.sha}:{})})});}
+    catch(error){if(await remoteContentMatches(row.installation_id,encoded,path,row.default_branch,report))return finish(row,runId,"committed","The scheduled write succeeded and was reconciled after an ambiguous response.",{baseSha:head.object.sha,paths:[path]});throw error;}
+    if(!write.ok){
+      if(write.status>=500&&await remoteContentMatches(row.installation_id,encoded,path,row.default_branch,report))return finish(row,runId,"committed","The scheduled write succeeded and was reconciled after an ambiguous response.",{baseSha:head.object.sha,paths:[path]});
+      const retry=write.headers.get("retry-after");const error=new Error(`GITHUB_CONTENT_WRITE_${write.status}`);(error as Error&{retryAfter?:string}).retryAfter=retry??undefined;throw error;
+    }
     const result=await write.json() as {commit:{sha:string;html_url:string}};return finish(row,runId,"committed","Updated the bounded scheduled repository activity report.",{baseSha:head.object.sha,resultSha:result.commit.sha,commitUrl:result.commit.html_url,paths:[path]});
   }finally{
     await database().prepare("DELETE FROM repository_write_leases WHERE repository_id=? AND branch=? AND lease_owner=? AND fencing_token=?").bind(row.repository_id,row.default_branch,runId,fencingToken).run();

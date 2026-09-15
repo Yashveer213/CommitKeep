@@ -1,12 +1,12 @@
 # GitHub App setup
 
-CommitKeep uses a GitHub App so each user can select the repositories it may access. The app stores the installation ID and creates a short-lived installation token only when repository work is required.
+Commit-Keep uses a GitHub App so each user can select the repositories it may access. The app stores the installation ID and creates a short-lived installation token only when repository work is required.
 
 ## Create the app
 
-Create a GitHub App under the GitHub account or organization that will own CommitKeep. Use these values:
+Create a GitHub App under the GitHub account or organization that will own Commit-Keep. Use these values:
 
-- **GitHub App name:** a unique CommitKeep name
+- **GitHub App name:** a unique Commit-Keep name
 - **Homepage URL:** the current deployed application URL
 - **Callback URL:** `https://YOUR-APP-URL/api/auth/github/callback`
 - **Setup URL:** `https://YOUR-APP-URL/api/github/setup`
@@ -25,9 +25,9 @@ Do not request organization-wide administration, workflow, secrets, or user-data
 
 Add the variables listed in `config/env.example` through the deployment provider's secret manager. Never place the private key or webhook secret in Git, browser code, build-time public variables, or screenshots.
 
-Generate one GitHub App client secret. The sign-in flow also requires `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. It exchanges the temporary OAuth code on the server, stores only a hashed CommitKeep session token, and does not persist GitHub's user access token.
+Generate one GitHub App client secret. The sign-in flow also requires `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`. It exchanges the temporary OAuth code on the server, stores only a hashed Commit-Keep session token, and does not persist GitHub's user access token.
 
-The repository connection flow is enabled only when `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and `GITHUB_APP_PRIVATE_KEY` are available. It verifies GitHub's installation response from the server before binding that installation to the signed-in CommitKeep account.
+The repository connection flow is enabled only when `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, and `GITHUB_APP_PRIVATE_KEY` are available. It verifies GitHub's installation response from the server before binding that installation to the signed-in Commit-Keep account.
 
 ## Database
 

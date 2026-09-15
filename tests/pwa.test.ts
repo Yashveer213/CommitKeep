@@ -1,0 +1,7 @@
+import {describe,expect,it} from "vitest";import {readFileSync} from "node:fs";import {fileURLToPath} from "node:url";import sharp from "sharp";
+describe("Commit-Keep PWA",()=>{
+  const manifest=readFileSync(new URL("../app/manifest.ts",import.meta.url),"utf8");const worker=readFileSync(new URL("../public/sw.js",import.meta.url),"utf8");
+  it("declares stable identity and complete icon purposes",()=>{expect(manifest).toContain('name: "Commit-Keep"');expect(manifest).toContain('id: "/"');expect(manifest).toContain('scope: "/"');expect(manifest).toContain('icon-maskable-512.png');expect(manifest).toContain('purpose: "maskable"')});
+  it("excludes private routes and bounds caches",()=>{expect(worker).toContain("url.pathname.startsWith('/api/')");expect(worker).toContain("/private|no-store/i");expect(worker).toContain("keys.length>maxEntries");expect(worker).not.toMatch(/PRECACHE=.*['\"]\/['\"]/)});
+  it("exports correctly sized raster assets",async()=>{for(const [file,size] of [["icon-16.png",16],["icon-32.png",32],["icon-48.png",48],["icon-192.png",192],["icon-512.png",512],["icon-maskable-512.png",512]] as const){const metadata=await sharp(fileURLToPath(new URL(`../public/icons/${file}`,import.meta.url))).metadata();expect([metadata.width,metadata.height]).toEqual([size,size])}const apple=await sharp(fileURLToPath(new URL("../public/apple-touch-icon.png",import.meta.url))).metadata();expect([apple.width,apple.height]).toEqual([180,180])});
+});

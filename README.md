@@ -1,6 +1,6 @@
-# CommitKeep
+# Commit-Keep
 
-CommitKeep is an installable web app that connects to selected GitHub repositories, performs useful scheduled content updates, saves pending work, and keeps an account-owned record of every run and commit.
+Commit-Keep is an installable web app that connects to selected GitHub repositories, performs useful scheduled content updates, saves pending work, and keeps an account-owned record of every run and commit.
 
 Stages 1–3 are implemented. The staging system includes GitHub OAuth, repository-scoped GitHub App installation, account-owned history, daily schedules, bounded repository writes, saved-work commits, a Cloudflare scheduler, and PWA support. A live scheduled commit was verified on September 15, 2026.
 
@@ -9,7 +9,7 @@ Stages 1–3 are implemented. The staging system includes GitHub OAuth, reposito
 | Stage | Purpose | Status |
 | --- | --- | --- |
 | [Stage 1](docs/stages/STAGE_1_UI_UX.md) | Product design and interactive interface | Complete |
-| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | Implementation complete; live validation pending |
+| [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | Complete in staging |
 | [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | Complete in staging; public launch gates remain |
 
 ## Run locally
@@ -54,4 +54,4 @@ npm run lint
 
 ## Current deployment
 
-The Stage 1 preview is private and hosted at `commitkeep.syashveer981.chatgpt.site`. A branded custom domain is planned before release.
+The current staging build is available at `https://commitkeep-staging.mkyash40.workers.dev`. A branded custom domain is planned before production release.

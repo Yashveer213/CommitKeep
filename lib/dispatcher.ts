@@ -24,9 +24,9 @@ export async function dispatchDueOccurrences(now = new Date(), limit = 50) {
       db.prepare(`INSERT OR IGNORE INTO scheduled_occurrences (id,owner_id,repository_id,schedule_id,schedule_time_id,schedule_version,local_date,local_time,scheduled_for,status,attempts,claimed_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'claimed',0,?,?)`).bind(occurrenceId,row.owner_id,row.repository_id,row.schedule_id,row.time_id,row.version,localDate,row.local_time,row.next_run_at,updatedAt,updatedAt),
       db.prepare(`INSERT OR IGNORE INTO runs (id,owner_id,repository_id,schedule_id,source,outcome,summary,branch,base_sha,result_sha,commit_url,changed_paths_json,error_code,idempotency_key,occurrence_id,schedule_version,scheduled_for,created_at,completed_at) SELECT ?,?,?,?,'automatic','queued','Scheduled action queued.',NULL,NULL,NULL,NULL,'[]',NULL,?,?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM scheduled_occurrences WHERE id=?)`).bind(runId,row.owner_id,row.repository_id,row.schedule_id,occurrenceId,occurrenceId,row.version,row.next_run_at,updatedAt,occurrenceId),
       db.prepare(`UPDATE scheduled_occurrences SET status='queued', updated_at=? WHERE id=? AND status='claimed'`).bind(updatedAt,occurrenceId),
-      db.prepare(`UPDATE schedule_times SET last_occurrence_id=?, next_run_at=?, status=?, updated_at=? WHERE id=? AND next_run_at=?`).bind(occurrenceId,following?.scheduledFor ?? null,following ? "active" : "expired",updatedAt,row.time_id,row.next_run_at),
     ]);
     await queue.send({ occurrenceId, runId });
+    await db.prepare(`UPDATE schedule_times SET last_occurrence_id=?, next_run_at=?, status=?, updated_at=? WHERE id=? AND next_run_at=?`).bind(occurrenceId,following?.scheduledFor ?? null,following ? "active" : "expired",updatedAt,row.time_id,row.next_run_at).run();
     dispatched.push(occurrenceId);
   }
   return dispatched;

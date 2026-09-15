@@ -1,26 +1,7 @@
-const CACHE = 'commitkeep-shell-v1';
-const SHELL = ['/offline.html', '/favicon.svg', '/manifest.webmanifest'];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))).then(() => self.clients.claim()));
-});
-
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  const url = new URL(request.url);
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
-  if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
-    return;
-  }
-  if (['script', 'style', 'image', 'font'].includes(request.destination)) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok && response.type === 'basic') caches.open(CACHE).then((cache) => cache.put(request, response.clone()));
-      return response;
-    })));
-  }
-});
+const REVISION='commit-keep-v3-20260915';const SHELL=`${REVISION}-shell`;const ASSETS=`${REVISION}-assets`;const PUBLIC=`${REVISION}-public`;const PRECACHE=['/offline.html','/favicon.svg','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'];
+const excluded=(url)=>url.pathname.startsWith('/api/')||url.pathname.startsWith('/api/auth/')||url.pathname.includes('/callback')||url.pathname.startsWith('/account');
+self.addEventListener('install',event=>event.waitUntil(caches.open(SHELL).then(cache=>cache.addAll(PRECACHE))));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>!key.startsWith(REVISION)).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting()});
+async function cacheIfPublic(cacheName,request,response,maxEntries){const control=response.headers.get('cache-control')??'';if(!response.ok||response.type!=='basic'||/private|no-store/i.test(control))return response;const cache=await caches.open(cacheName);await cache.put(request,response.clone());const keys=await cache.keys();if(keys.length>maxEntries)await Promise.all(keys.slice(0,keys.length-maxEntries).map(key=>cache.delete(key)));return response}
+self.addEventListener('fetch',event=>{const request=event.request;const url=new URL(request.url);if(request.method!=='GET'||url.origin!==self.location.origin||excluded(url))return;if(request.mode==='navigate'){event.respondWith(fetch(request).catch(()=>caches.match('/offline.html')));return}if(url.pathname.startsWith('/_next/static/')){event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>cacheIfPublic(ASSETS,request,response,80))));return}if(['image','font','style','script'].includes(request.destination)){event.respondWith(fetch(request).then(response=>cacheIfPublic(PUBLIC,request,response,40)).catch(()=>caches.match(request)));}});
