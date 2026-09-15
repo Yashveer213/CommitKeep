@@ -1,5 +1,6 @@
 type GitHubInstallation = {
   id: number;
+  html_url: string;
   account: { id: number; login: string; type: string } | null;
 };
 

@@ -9,6 +9,8 @@ export type ChatGPTUser = {
   displayName: string;
   email: string | null;
   fullName: string | null;
+  githubLogin: string | null;
+  avatarUrl: string | null;
 };
 
 const SIGN_IN_PATH = "/signin-with-chatgpt";
@@ -30,7 +32,7 @@ export async function getSessionUser(): Promise<ChatGPTUser | null> {
   const db = getDb();
   const [row] = await db.select({ user: users }).from(sessions).innerJoin(users, eq(sessions.userId, users.id)).where(and(eq(sessions.tokenHash, await sha256(token)), gt(sessions.expiresAt, new Date().toISOString()))).limit(1);
   if (!row) return null;
-  return { userId: row.user.id, displayName: row.user.displayName, email: row.user.email, fullName: row.user.displayName };
+  return { userId: row.user.id, displayName: row.user.displayName, email: row.user.email, fullName: row.user.displayName, githubLogin: row.user.githubLogin, avatarUrl: row.user.avatarUrl };
 }
 
 export async function hashSessionToken(value: string) {

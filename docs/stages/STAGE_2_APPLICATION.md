@@ -75,3 +75,5 @@ Live validation passed in staging on September 15, 2026. GitHub OAuth created a 
 # Release hardening
 
 The scheduling path now uses additive dispatch and execution fencing. Due occurrences are claimed before enqueue, Queue deliveries receive unique attempt identities, and removed schedule times are retained as disabled records so run history remains valid.
+
+Account management now separates logout, GitHub access management, and permanent account deletion. Repository cards load persisted schedules into explicit edit mode, use expected-version updates, and soft-disable schedules while preserving history.

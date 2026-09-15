@@ -30,7 +30,7 @@ export async function GET() {
   ]);
 
   return Response.json({
-    account: { displayName: account.displayName },
+    account: { displayName: account.displayName, githubLogin: account.githubLogin, avatarUrl: account.avatarUrl },
     github: { connected: installationRows.some((row) => row.status === "active"), installations: installationRows },
     repositories: repositoryRows.map((repository) => ({ ...repository, automationStatus: controlRows.find((control) => control.repositoryId === repository.id)?.status ?? "active" })),
     schedules: scheduleRows.map((schedule) => ({ ...schedule, times: scheduleTimeRows.filter((time) => time.scheduleId === schedule.id) })),

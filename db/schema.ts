@@ -4,6 +4,8 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   displayName: text("display_name").notNull(),
   email: text("email"),
+  githubLogin: text("github_login"),
+  avatarUrl: text("avatar_url"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -23,6 +25,7 @@ export const githubInstallations = sqliteTable("github_installations", {
   accountLogin: text("account_login").notNull(),
   accountType: text("account_type").notNull(),
   status: text("status", { enum: ["active", "suspended", "removed"] }).notNull(),
+  htmlUrl: text("html_url"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [

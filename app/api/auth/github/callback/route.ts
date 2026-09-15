@@ -18,9 +18,9 @@ export async function GET(request: Request) {
   if (!tokenResponse.ok || !tokenResult.access_token) return Response.json({ error: "GitHub sign-in could not be completed." }, { status: 502 });
   const userResponse = await fetch("https://api.github.com/user", { headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${tokenResult.access_token}`, "User-Agent": "CommitKeep", "X-GitHub-Api-Version": "2022-11-28" } });
   if (!userResponse.ok) return Response.json({ error: "GitHub identity could not be verified." }, { status: 502 });
-  const githubUser = await userResponse.json() as { id: number; login: string; name: string | null; email: string | null };
+  const githubUser = await userResponse.json() as { id: number; login: string; name: string | null; email: string | null; avatar_url: string };
   const db = getDb(); const now = new Date(); const userId = `github:${githubUser.id}`;
-  await db.insert(users).values({ id: userId, displayName: githubUser.name ?? githubUser.login, email: githubUser.email, createdAt: now.toISOString(), updatedAt: now.toISOString() }).onConflictDoUpdate({ target: users.id, set: { displayName: githubUser.name ?? githubUser.login, email: githubUser.email, updatedAt: now.toISOString() } });
+  await db.insert(users).values({ id: userId, displayName: githubUser.name ?? githubUser.login, email: githubUser.email, githubLogin: githubUser.login, avatarUrl: githubUser.avatar_url, createdAt: now.toISOString(), updatedAt: now.toISOString() }).onConflictDoUpdate({ target: users.id, set: { displayName: githubUser.name ?? githubUser.login, email: githubUser.email, githubLogin: githubUser.login, avatarUrl: githubUser.avatar_url, updatedAt: now.toISOString() } });
   const sessionToken = crypto.randomUUID() + crypto.randomUUID();
   await db.insert(sessions).values({ tokenHash: await hashSessionToken(sessionToken), userId, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() });
   const response = new Response(null, { status: 302, headers: { Location: new URL("/", request.url).toString() } });

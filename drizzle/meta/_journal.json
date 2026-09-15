@@ -64,6 +64,13 @@
       "when": 1789460000000,
       "tag": "0008_release_safety",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789461000000,
+      "tag": "0009_account_management",
+      "breakpoints": true
     }
   ]
 }

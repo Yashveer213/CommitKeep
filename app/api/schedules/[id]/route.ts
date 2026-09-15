@@ -52,3 +52,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   await env.DB.batch(statements);
   return Response.json({ id, version: nextVersion, times, timezone: parsed.data.timezone, startDate: parsed.data.startDate, endDate: parsed.data.endDate ?? null });
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const account = await getChatGPTUser();
+  if (!account || !env.DB) return Response.json({ error: "Schedule not found." }, { status: 404 });
+  const { id } = await params; const now = new Date().toISOString();
+  const result = await env.DB.batch([
+    env.DB.prepare("UPDATE schedules SET status='disabled',enabled=0,version=version+1,updated_at=? WHERE id=? AND owner_id=? AND status!='disabled'").bind(now,id,account.userId),
+    env.DB.prepare("UPDATE schedule_times SET status='disabled',disabled_at=?,next_run_at=NULL,updated_at=? WHERE schedule_id=? AND EXISTS (SELECT 1 FROM schedules s WHERE s.id=schedule_times.schedule_id AND s.owner_id=?)").bind(now,now,id,account.userId),
+    env.DB.prepare("UPDATE scheduled_occurrences SET status='cancelled',updated_at=? WHERE schedule_id=? AND owner_id=? AND status IN ('claimed','queued')").bind(now,id,account.userId),
+    env.DB.prepare("UPDATE runs SET outcome='cancelled',summary='The schedule was disabled before execution.',completed_at=? WHERE schedule_id=? AND owner_id=? AND outcome='queued'").bind(now,id,account.userId),
+    env.DB.prepare("INSERT INTO audit_events(id,owner_id,actor_type,event,target_type,target_id,correlation_id,result,metadata_json,created_at) SELECT ?,?,'user','schedule_disabled','schedule',?,?,'succeeded','{}',? WHERE EXISTS (SELECT 1 FROM schedules WHERE id=? AND owner_id=?)").bind(crypto.randomUUID(),account.userId,id,crypto.randomUUID(),now,id,account.userId),
+  ]);
+  if (!result[0].meta.changes) return Response.json({ error: "Schedule not found." }, { status: 404 });
+  return Response.json({ id, status: "disabled" });
+}

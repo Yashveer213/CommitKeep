@@ -1,7 +1,8 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
-import { githubConnectionStates, users } from "@/db/schema";
-import { getGitHubAppConfig } from "@/lib/github-app";
+import { githubConnectionStates, githubInstallations, users } from "@/db/schema";
+import { getGitHubAppConfig, getGitHubInstallation } from "@/lib/github-app";
+import { and, eq } from "drizzle-orm";
 
 export async function POST() {
   const account = await getChatGPTUser();
@@ -16,6 +17,13 @@ export async function POST() {
   }
 
   const db = getDb();
+  const [activeInstallation] = await db.select().from(githubInstallations).where(and(eq(githubInstallations.ownerId, account.userId), eq(githubInstallations.status, "active"))).limit(1);
+  if (activeInstallation) {
+    const installation = await getGitHubInstallation(activeInstallation.installationId);
+    if (!installation.account || String(installation.account.id) !== activeInstallation.accountId) return Response.json({ error: "The GitHub installation owner could not be verified." }, { status: 409 });
+    await db.update(githubInstallations).set({ htmlUrl: installation.html_url, updatedAt: new Date().toISOString() }).where(eq(githubInstallations.id, activeInstallation.id));
+    return Response.json({ redirectUrl: installation.html_url, existingInstallation: true, message: "GitHub may ask you to verify your identity before changing repository access." });
+  }
   const now = new Date();
   const state = crypto.randomUUID();
   await db.insert(users).values({ id: account.userId, displayName: account.displayName, email: account.email, createdAt: now.toISOString(), updatedAt: now.toISOString() })

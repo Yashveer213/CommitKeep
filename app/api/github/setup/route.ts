@@ -36,9 +36,9 @@ export async function GET(request: Request) {
 
   const now = new Date().toISOString();
   if (existing) {
-    await db.update(githubInstallations).set({ accountId: String(installation.account.id), accountLogin: installation.account.login, accountType: installation.account.type, status: "active", updatedAt: now }).where(eq(githubInstallations.id, existing.id));
+    await db.update(githubInstallations).set({ accountId: String(installation.account.id), accountLogin: installation.account.login, accountType: installation.account.type, status: "active", htmlUrl: installation.html_url, updatedAt: now }).where(eq(githubInstallations.id, existing.id));
   } else {
-    await db.insert(githubInstallations).values({ id: crypto.randomUUID(), ownerId: account.userId, installationId, accountId: String(installation.account.id), accountLogin: installation.account.login, accountType: installation.account.type, status: "active", createdAt: now, updatedAt: now });
+    await db.insert(githubInstallations).values({ id: crypto.randomUUID(), ownerId: account.userId, installationId, accountId: String(installation.account.id), accountLogin: installation.account.login, accountType: installation.account.type, status: "active", htmlUrl: installation.html_url, createdAt: now, updatedAt: now });
   }
   await db.delete(githubConnectionStates).where(eq(githubConnectionStates.id, state));
 

@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, Pause, Play, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, LogOut, Pause, Play, Plus, Settings, ShieldCheck, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
 type Workspace = {
+  account?: { displayName: string; githubLogin: string | null; avatarUrl: string | null };
   github: { connected: boolean; installations: { installationId: string; accountLogin: string; status: string }[] };
   repositories: { id: string; fullName: string; defaultBranch: string; enabled: boolean; automationStatus?: 'active' | 'paused' }[];
-  schedules: { id: string; repositoryId: string; localTime: string; timezone: string; enabled: boolean; status?: string; times?: {localTime:string;nextRunAt:string|null}[] }[];
+  schedules: { id: string; repositoryId: string; localTime: string; timezone: string; enabled: boolean; status?: string; version?:number; mode?:'update'; startDate?:string|null; endDate?:string|null; times?: {localTime:string;nextRunAt:string|null;status?:string}[] }[];
   runs: { id: string; source: string; outcome: string; summary: string; commitUrl: string | null; createdAt: string }[];
   drafts: { id: string; repositoryId: string; path: string; preview: string; updatedAt: string }[];
 };
@@ -18,7 +19,7 @@ type AvailableRepository = { id: string; fullName: string; defaultBranch: string
 
 const emptyWorkspace: Workspace = { github: { connected: false, installations: [] }, repositories: [], schedules: [], runs: [], drafts: [] };
 
-export default function Dashboard({ account }: { account: string | null }) {
+export default function Dashboard({ account }: { account: {displayName:string;githubLogin:string|null;avatarUrl:string|null} | null }) {
   const router = useRouter();
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   const [loading, setLoading] = useState(Boolean(account));
@@ -32,11 +33,13 @@ export default function Dashboard({ account }: { account: string | null }) {
   const [timezone, setTimezone] = useState('UTC');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [mode, setMode] = useState<'update' | 'save' | 'both'>('both');
+  const [mode] = useState<'update'>('update');
   const [saving, setSaving] = useState(false);
   const [draftName, setDraftName] = useState('daily-notes');
   const [draftContent, setDraftContent] = useState('');
   const [accountDialog, setAccountDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [editScheduleId, setEditScheduleId] = useState<string|null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [pauseDialog, setPauseDialog] = useState<'pause'|'resume'|null>(null);
   const [automationSelection, setAutomationSelection] = useState<string[]>([]);
@@ -106,16 +109,18 @@ export default function Dashboard({ account }: { account: string | null }) {
   }
 
   async function createSchedule() {
-    const repositoryIds = workspace.repositories.filter((repository)=>repository.enabled).map((repository)=>repository.id);
+    const repositoryIds = editScheduleId?selectedRepositoryIds:workspace.repositories.filter((repository)=>repository.enabled).map((repository)=>repository.id);
     if (!repositoryIds.length) return;
     if(new Set(dailyTimes).size!==dailyTimes.length){setConnectionError('Choose a different time for every scheduled run.');return;}
     setSaving(true); setConnectionError('');
-    const response = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ repositoryIds, action:'activity_report', mode, times:dailyTimes, timezone, startDate, endDate:endDate||null }) });
-    const result = await response.json() as { error?: string; schedules: {id:string;repositoryId:string;times:string[]}[] };
+    const current=editScheduleId?workspace.schedules.find(item=>item.id===editScheduleId):null;
+    const response = await fetch(editScheduleId?`/api/schedules/${editScheduleId}`:'/api/schedules', { method: editScheduleId?'PATCH':'POST', headers: { 'Content-Type': 'application/json', ...(editScheduleId?{}:{'Idempotency-Key': crypto.randomUUID()}) }, body: JSON.stringify(editScheduleId?{expectedVersion:current?.version,mode,times:dailyTimes,timezone,startDate,endDate:endDate||null}:{ repositoryIds, action:'activity_report', mode, times:dailyTimes, timezone, startDate, endDate:endDate||null }) });
+    const result = await response.json() as { error?: string; id?:string;version?:number;times?:string[];schedules?: {id:string;repositoryId:string;version:number;times:string[]}[] };
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The schedule could not be created.'); return; }
-    setWorkspace((current) => ({ ...current, schedules: [...current.schedules.filter((item) => !repositoryIds.includes(item.repositoryId)), ...result.schedules.map(item=>({id:item.id,repositoryId:item.repositoryId,localTime:item.times[0],timezone,enabled:true,status:'active',times:item.times.map(localTime=>({localTime,nextRunAt:null}))}))] }));
-    setConnect(false);
+    const saved=result.schedules??[{id:result.id!,repositoryId:repositoryIds[0],version:result.version!,times:result.times!}];
+    setWorkspace((currentWorkspace) => ({ ...currentWorkspace, schedules: [...currentWorkspace.schedules.filter((item) => !repositoryIds.includes(item.repositoryId)), ...saved.map(item=>({id:item.id,repositoryId:item.repositoryId,localTime:item.times[0],timezone,startDate,endDate:endDate||null,mode,version:item.version,enabled:true,status:'active',times:item.times.map(localTime=>({localTime,nextRunAt:null}))}))] }));
+    setEditScheduleId(null);setConnect(false);
   }
 
   async function changeAutomation(action:'pause'|'resume'){
@@ -163,11 +168,37 @@ export default function Dashboard({ account }: { account: string | null }) {
     router.push('/'); router.refresh();
   }
 
+  async function signOut() {
+    const response=await fetch('/api/auth/signout',{method:'POST',headers:{'Content-Type':'application/json'}});
+    if(!response.ok){setConnectionError('Sign out could not be completed.');return;}
+    setWorkspace(emptyWorkspace);setAccountDialog(false);router.push('/');router.refresh();
+  }
+
+  async function disableSchedule(){
+    if(!editScheduleId)return;setSaving(true);
+    const response=await fetch(`/api/schedules/${editScheduleId}`,{method:'DELETE',headers:{'Content-Type':'application/json'}});
+    setSaving(false);if(!response.ok){setConnectionError('The schedule could not be disabled.');return;}
+    setWorkspace(current=>({...current,schedules:current.schedules.map(item=>item.id===editScheduleId?{...item,status:'disabled',enabled:false}:item)}));setEditScheduleId(null);setConnect(false);
+  }
+
+  function editRepositorySchedule(repositoryId:string){
+    const schedule=workspace.schedules.find(item=>item.repositoryId===repositoryId&&item.status!=='disabled');
+    if(!schedule){setEditScheduleId(null);setSelectedRepositoryIds([repositoryId]);setConnect(true);setStep(3);return;}
+    setEditScheduleId(schedule.id);setSelectedRepositoryIds([repositoryId]);setDailyTimes(schedule.times?.filter(time=>Boolean(time.nextRunAt)).map(time=>time.localTime)??[schedule.localTime]);setTimezone(schedule.timezone);setStartDate(schedule.startDate??'');setEndDate(schedule.endDate??'');setConnect(true);setStep(3);
+  }
+
+  function scheduleSummary(repositoryId:string){
+    const schedule=workspace.schedules.find(item=>item.repositoryId===repositoryId&&item.status!=='disabled');
+    if(!schedule)return 'No schedule configured';
+    const times=schedule.times?.filter(time=>time.status!=='disabled').map(time=>time.localTime).join(', ')||schedule.localTime;
+    return `${schedule.status??'active'} · ${times} · ${schedule.timezone} · from ${schedule.startDate??'legacy start'}${schedule.endDate?` through ${schedule.endDate}`:''}`;
+  }
+
   return (
     <div className="shell">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Commit-Keep home"><span className="brandmark"><GitBranch size={21} strokeWidth={1.7} /></span>Commit-Keep</Link>
-        <button className="account account-button" onClick={() => account ? setAccountDialog(true) : router.push('/api/auth/github/start')}><span className="avatar">{account?.slice(0, 1).toUpperCase() ?? 'G'}</span><span>{account ?? 'Sign in with GitHub'}</span></button>
+        <button className="account account-button" onClick={() => account ? setAccountDialog(true) : router.push('/api/auth/github/start')}>{account?.avatarUrl?<img className="avatar" src={account.avatarUrl} alt="" referrerPolicy="no-referrer"/>:<span className="avatar">{account?.displayName.slice(0, 1).toUpperCase() ?? 'G'}</span>}<span>{account?.displayName ?? 'Sign in with GitHub'}</span></button>
       </header>
 
       <main>
@@ -200,7 +231,7 @@ export default function Dashboard({ account }: { account: string | null }) {
             <TabsContent value="repos" forceMount className="workspace-view" inert={tab !== 'repos'} aria-hidden={tab !== 'repos'}>
               <section className="workspace-grid">
                 <div className={`panel ${workspace.repositories.length ? 'repository-panel' : 'empty'}`}>
-                  {workspace.repositories.length ? <><div className="panel-heading"><div><span className="eyebrow">CONNECTED</span><h2>Your repositories</h2></div><div className="panel-actions"><button className="secondary-button" onClick={() => { setConnect(true); setStep(2); }}>Manage</button><button className="secondary-button" onClick={()=>{setPauseDialog('pause');setAutomationSelection([])}}><Pause size={15}/>Pause schedules</button></div></div><div className="connected-repositories">{workspace.repositories.map((repository) => <article key={repository.id}><div className="repository-name"><FolderGit2 size={18} /><span><strong>{repository.fullName}</strong><small>{repository.defaultBranch} · {repository.automationStatus==='paused'?'Schedules paused':'Schedules active'}</small></span></div><button className="text-button" onClick={() => runDryCheck(repository.id)}>Run access check<ArrowRight size={14} /></button></article>)}</div></> : <>
+                  {workspace.repositories.length ? <><div className="panel-heading"><div><span className="eyebrow">CONNECTED</span><h2>Your repositories</h2></div><div className="panel-actions"><button className="secondary-button" onClick={() => { setConnect(true); setStep(2); }}>Manage GitHub access</button><button className="secondary-button" onClick={()=>{setPauseDialog('pause');setAutomationSelection([])}}><Pause size={15}/>Pause schedules</button></div></div><div className="connected-repositories">{workspace.repositories.map((repository) => <article key={repository.id}><div className="repository-name"><FolderGit2 size={18} /><span><strong>{repository.fullName}</strong><small>{repository.defaultBranch} · {repository.automationStatus==='paused'?'Schedules paused':scheduleSummary(repository.id)}</small></span></div><div className="panel-actions"><button className="text-button" onClick={() => editRepositorySchedule(repository.id)}><Settings size={14}/>Configure</button><button className="text-button" onClick={() => runDryCheck(repository.id)}>Run access check<ArrowRight size={14} /></button></div></article>)}</div></> : <>
                   <div className="repo-icon">{loading ? <LoaderCircle className="spin" size={27} /> : <FolderGit2 size={29} strokeWidth={1.25} />}</div>
                   <h2>{workspace.github.connected ? 'Choose your first repository' : 'Connect your work'}</h2>
                   <p>{workspace.github.connected ? `GitHub account @${workspace.github.installations[0]?.accountLogin} is connected. Repository selection is the next step.` : 'Install Commit-Keep only on the repositories you want it to manage.'}</p>
@@ -262,10 +293,11 @@ export default function Dashboard({ account }: { account: string | null }) {
 
           {step === 1 && <div className="connection-note"><ShieldCheck size={19} /><div><h3>Least-privilege access</h3><p>Commit-Keep stores the installation ID. Temporary GitHub credentials are created only when a job runs.</p></div></div>}
           {step === 2 && <div className="repository-list">{availableRepositories.length ? availableRepositories.map((repository) => <label key={repository.id} className="repository-choice"><input type="checkbox" checked={selectedRepositoryIds.includes(repository.id)} onChange={(event) => setSelectedRepositoryIds((current) => event.target.checked ? [...current, repository.id] : current.filter((id) => id !== repository.id))} /><span><strong>{repository.fullName}</strong><small>{repository.private ? 'Private' : 'Public'} · {repository.defaultBranch}</small></span></label>) : <div className="repository-picker"><LoaderCircle className="spin" size={17} />Loading approved repositories…</div>}</div>}
-          {step === 3 && <div className="setup-fields"><div className="schedule-summary"><strong>Applies to {workspace.repositories.filter(repository=>repository.enabled).length} repositories</strong><span>{workspace.repositories.filter(repository=>repository.enabled).map(repository=>repository.fullName).join(', ')}</span></div><label>Daily action<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="update">Update repository activity</option><option value="both">Update content and save available work</option><option value="save">Save pending work when available</option></select></label><label>Scheduled runs per day<select value={dailyTimes.length} onChange={(event)=>{const count=Number(event.target.value);const defaults=['09:00','11:00','13:00','15:00','17:00','19:00','21:00','23:00'];setDailyTimes(current=>Array.from({length:count},(_,index)=>current[index]??defaults[index]))}}>{Array.from({length:8},(_,index)=><option key={index+1} value={index+1}>{index+1}</option>)}</select></label><div className="time-grid">{dailyTimes.map((time,index)=><label key={index}>Run {index+1} time<input type="time" value={time} aria-invalid={dailyTimes.indexOf(time)!==index} onChange={(event)=>setDailyTimes(current=>current.map((value,item)=>item===index?event.target.value:value))}/></label>)}</div><label>Timezone<input list="commitkeep-timezones" value={timezone} onChange={(event)=>setTimezone(event.target.value)} autoComplete="off"/><datalist id="commitkeep-timezones">{timezoneOptions.map(zone=><option key={zone} value={zone}/>)}</datalist></label><div className="date-grid"><label>Start date (inclusive)<input type="date" required value={startDate} onChange={(event)=>setStartDate(event.target.value)}/></label><label>End date (optional, inclusive)<input type="date" min={startDate} value={endDate} onChange={(event)=>setEndDate(event.target.value)}/></label></div><div className="schedule-summary" aria-live="polite"><strong>Schedule summary</strong><span>{dailyTimes.slice().sort().join(', ')} · {timezone}</span><span>Starts {startDate||'when a start date is chosen'}{endDate?` and ends ${endDate}`:' with no end date'}.</span><small>Commit-Keep runs the selected action at these times. A commit is created only when repository content actually changes. Times already passed today are not backfilled.</small></div></div>}
+          {step === 3 && <div className="setup-fields"><div className="schedule-summary"><strong>Applies to {editScheduleId?selectedRepositoryIds.length:workspace.repositories.filter(repository=>repository.enabled).length} repositories</strong><span>{workspace.repositories.filter(repository=>editScheduleId?selectedRepositoryIds.includes(repository.id):repository.enabled).map(repository=>repository.fullName).join(', ')}</span></div><label>Daily action<select value={mode} disabled><option value="update">Update daily repository report</option></select></label><label>Scheduled runs per day<select value={dailyTimes.length} onChange={(event)=>{const count=Number(event.target.value);const defaults=['09:00','11:00','13:00','15:00','17:00','19:00','21:00','23:00'];setDailyTimes(current=>Array.from({length:count},(_,index)=>current[index]??defaults[index]))}}>{Array.from({length:8},(_,index)=><option key={index+1} value={index+1}>{index+1}</option>)}</select></label><div className="time-grid">{dailyTimes.map((time,index)=><label key={index}>Run {index+1} time<input type="time" value={time} aria-invalid={dailyTimes.indexOf(time)!==index} onChange={(event)=>setDailyTimes(current=>current.map((value,item)=>item===index?event.target.value:value))}/></label>)}</div><label>Timezone<input list="commitkeep-timezones" value={timezone} onChange={(event)=>setTimezone(event.target.value)} autoComplete="off"/><datalist id="commitkeep-timezones">{timezoneOptions.map(zone=><option key={zone} value={zone}/>)}</datalist></label><div className="date-grid"><label>Start date (inclusive)<input type="date" required value={startDate} onChange={(event)=>setStartDate(event.target.value)}/></label><label>End date (optional, inclusive)<input type="date" min={startDate} value={endDate} onChange={(event)=>setEndDate(event.target.value)}/></label></div><div className="schedule-summary" aria-live="polite"><strong>Schedule summary</strong><span>{dailyTimes.slice().sort().join(', ')} · {timezone}</span><span>Starts {startDate||'when a start date is chosen'}{endDate?` and ends ${endDate}`:' with no end date'}.</span><small>Commit-Keep runs the selected action at these times. A commit is created only when repository content actually changes. Times already passed today are not backfilled.</small></div></div>}
 
           {connectionError && <p className="form-error" role="alert">{connectionError}</p>}
           <div className="dialog-actions">
+            {step===3&&editScheduleId&&<button className="secondary-button" disabled={saving} onClick={disableSchedule}>Disable schedule</button>}
             {step > 1 && <button className="secondary-button" onClick={() => setStep(step - 1)}>Back</button>}
             {step === 1 ? <button className="primary" onClick={connectGitHub}>{workspace.github.connected ? 'Connected' : 'Continue with GitHub'}<ArrowRight size={16} /></button> :
              step < 3 ? <button className="primary" disabled={!selectedRepositoryIds.length || saving} onClick={saveRepositories}>{saving ? 'Saving…' : 'Continue'}<ArrowRight size={16} /></button> :
@@ -275,7 +307,10 @@ export default function Dashboard({ account }: { account: string | null }) {
         </DialogContent>
       </Dialog>
       <Dialog open={accountDialog} onOpenChange={setAccountDialog}>
-        <DialogContent className="connect-dialog"><span className="dialog-icon"><Trash2 size={22} /></span><DialogTitle>Delete Commit-Keep account</DialogTitle><DialogDescription>This revokes Commit-Keep’s GitHub installations and permanently removes your repositories, schedules, drafts, and history from Commit-Keep.</DialogDescription><div className="setup-fields"><label>Type DELETE to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label></div>{connectionError && <p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={() => setAccountDialog(false)}>Cancel</button><button className="primary" disabled={saving || deleteConfirmation !== 'DELETE'} onClick={deleteAccount}>{saving ? 'Deleting…' : 'Delete account'}</button></div></DialogContent>
+        <DialogContent className="connect-dialog"><DialogTitle>Account</DialogTitle><div className="repository-name">{account?.avatarUrl?<img className="avatar" src={account.avatarUrl} alt="" referrerPolicy="no-referrer"/>:<span className="avatar">{account?.displayName.slice(0,1)}</span>}<span><strong>{account?.displayName}</strong><small>@{account?.githubLogin??'GitHub account'}</small></span></div><div className="setup-fields">{account?.githubLogin&&<a className="secondary-button" href={`https://github.com/${account.githubLogin}`} target="_blank" rel="noreferrer">Open GitHub profile<ArrowUpRight size={15}/></a>}<button className="secondary-button" onClick={()=>{setAccountDialog(false);setConnect(true);setStep(workspace.github.connected?2:1)}}><Settings size={15}/>Manage GitHub access</button><button className="secondary-button" onClick={signOut}><LogOut size={15}/>Log out</button><button className="text-button danger" onClick={()=>{setAccountDialog(false);setDeleteDialog(true)}}><Trash2 size={15}/>Delete Commit-Keep account</button></div><p className="dialog-footnote">Logging out ends this browser session. Schedules and GitHub access continue unchanged.</p></DialogContent>
+      </Dialog>
+      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
+        <DialogContent className="connect-dialog"><span className="dialog-icon"><Trash2 size={22} /></span><DialogTitle>Delete Commit-Keep account</DialogTitle><DialogDescription>This revokes Commit-Keep’s GitHub installations and permanently removes your repositories, schedules, drafts, and history from Commit-Keep.</DialogDescription><div className="setup-fields"><label>Type DELETE to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label></div>{connectionError && <p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={() => setDeleteDialog(false)}>Cancel</button><button className="primary" disabled={saving || deleteConfirmation !== 'DELETE'} onClick={deleteAccount}>{saving ? 'Deleting…' : 'Delete account'}</button></div></DialogContent>
       </Dialog>
       <Dialog open={Boolean(pauseDialog)} onOpenChange={(open)=>{if(!open){setPauseDialog(null);setAutomationSelection([])}}}>
         <DialogContent className="connect-dialog"><span className="dialog-icon">{pauseDialog==='pause'?<Pause size={22}/>:<Play size={22}/>}</span><DialogTitle>{pauseDialog==='pause'?'Pause schedules':'Resume schedules'}</DialogTitle><DialogDescription>Select repositories. Pausing keeps GitHub access, settings, and history intact.</DialogDescription><div className="repository-list">{workspace.repositories.filter(repository=>pauseDialog==='pause'?repository.automationStatus!=='paused':repository.automationStatus==='paused').map(repository=><label className="repository-choice" key={repository.id}><input type="checkbox" checked={automationSelection.includes(repository.id)} onChange={(event)=>setAutomationSelection(current=>event.target.checked?[...current,repository.id]:current.filter(id=>id!==repository.id))}/><span><strong>{repository.fullName}</strong><small>{workspace.schedules.filter(schedule=>schedule.repositoryId===repository.id&&schedule.enabled&&schedule.status==='active').length} active schedules affected</small></span></label>)}</div><p className="dialog-footnote">{workspace.schedules.filter(schedule=>automationSelection.includes(schedule.repositoryId)&&schedule.enabled&&schedule.status==='active').length} active schedules selected</p>{connectionError&&<p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={()=>setPauseDialog(null)}>Cancel</button><button className="primary" disabled={!automationSelection.length||saving} onClick={()=>changeAutomation(pauseDialog??'pause')}>{saving?'Saving…':pauseDialog==='pause'?'Pause schedules':'Resume schedules'}</button></div></DialogContent>
