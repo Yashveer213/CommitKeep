@@ -4,6 +4,7 @@ import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { githubInstallations, repositories } from "@/db/schema";
 import { githubInstallationRequest } from "@/lib/github-app";
+import { env } from "cloudflare:workers";
 
 type GitHubRepository = { id: number; full_name: string; default_branch: string; private: boolean };
 const selectionSchema = z.object({ repositoryIds: z.array(z.string().regex(/^\d+$/)).max(50) });
@@ -37,21 +38,23 @@ export async function POST(request: Request) {
   if (parsed.data.repositoryIds.some((id) => !allowed.has(id))) return Response.json({ error: "A selected repository is outside this installation." }, { status: 403 });
 
   const db = getDb();
+  const d1 = env.DB;
+  if (!d1) return Response.json({ error: "Database is unavailable." }, { status: 503 });
   const now = new Date().toISOString();
   const currentRows = await db.select().from(repositories).where(eq(repositories.ownerId, account.userId));
   const currentByGitHubId = new Map(currentRows.map((row) => [row.githubRepositoryId, row]));
   const selectedSet = new Set(parsed.data.repositoryIds);
-  for (const row of currentRows) {
-    if (!selectedSet.has(row.githubRepositoryId) && row.enabled) await db.update(repositories).set({ enabled: false, updatedAt: now }).where(eq(repositories.id, row.id));
-  }
+  const statements: D1PreparedStatement[] = [];
+  for (const row of currentRows) if (!selectedSet.has(row.githubRepositoryId) && row.enabled) statements.push(d1.prepare("UPDATE repositories SET enabled=0,updated_at=? WHERE id=? AND owner_id=?").bind(now,row.id,account.userId));
   const savedRepositories = [];
   for (const id of parsed.data.repositoryIds) {
     const repo = allowed.get(id)!;
     const current = currentByGitHubId.get(id);
     const saved = { id: current?.id ?? crypto.randomUUID(), ownerId: account.userId, installationId: installation.installationId, githubRepositoryId: id, fullName: repo.full_name, defaultBranch: repo.default_branch, private: repo.private, enabled: true, createdAt: current?.createdAt ?? now, updatedAt: now };
-    if (current) await db.update(repositories).set({ installationId: saved.installationId, fullName: saved.fullName, defaultBranch: saved.defaultBranch, private: saved.private, enabled: true, updatedAt: now }).where(eq(repositories.id, current.id));
-    else await db.insert(repositories).values(saved);
+    if (current) statements.push(d1.prepare("UPDATE repositories SET installation_id=?,full_name=?,default_branch=?,private=?,enabled=1,updated_at=? WHERE id=? AND owner_id=?").bind(saved.installationId,saved.fullName,saved.defaultBranch,saved.private?1:0,now,current.id,account.userId));
+    else statements.push(d1.prepare("INSERT INTO repositories(id,owner_id,installation_id,github_repository_id,full_name,default_branch,private,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,1,?,?)").bind(saved.id,saved.ownerId,saved.installationId,saved.githubRepositoryId,saved.fullName,saved.defaultBranch,saved.private?1:0,saved.createdAt,saved.updatedAt));
     savedRepositories.push(saved);
   }
+  if(statements.length)await d1.batch(statements);
   return Response.json({ saved: savedRepositories.length, repositories: savedRepositories });
 }

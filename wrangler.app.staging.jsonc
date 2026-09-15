@@ -14,5 +14,6 @@
       "migrations_dir": "drizzle"
     }
   ],
+  "queues": { "producers": [{ "binding": "AUTOMATION_QUEUE", "queue": "commitkeep-staging-jobs" }] },
   "observability": { "enabled": true }
 }

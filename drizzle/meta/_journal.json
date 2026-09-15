@@ -43,6 +43,13 @@
       "when": 1789447686297,
       "tag": "0005_cold_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789454723112,
+      "tag": "0006_omniscient_jocasta",
+      "breakpoints": true
     }
   ]
 }

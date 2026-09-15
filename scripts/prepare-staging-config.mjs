@@ -12,5 +12,6 @@ config.d1_databases = [{
   migrations_dir: "../../drizzle",
 }];
 config.observability = { enabled: true };
+config.queues = { producers: [{ binding: "AUTOMATION_QUEUE", queue: "commitkeep-staging-jobs" }] };
 
 await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");

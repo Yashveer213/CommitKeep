@@ -1,6 +1,6 @@
 import { getDb } from "@/db";
-import { githubInstallations, webhookDeliveries } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { githubInstallations, repositories, webhookDeliveries } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 function bytesToHex(bytes: ArrayBuffer) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -24,15 +24,19 @@ export async function POST(request: Request) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const digest = bytesToHex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
   if (!constantTimeEqual(signature, `sha256=${digest}`)) return Response.json({ error: "Invalid webhook signature." }, { status: 401 });
-  let payload: { action?: string; installation?: { id?: number } } = {};
+  let payload: { action?: string; installation?: { id?: number }; repositories_removed?: { id?: number }[] } = {};
   try { payload = JSON.parse(body) as typeof payload; } catch { return Response.json({ error: "Invalid webhook payload." }, { status: 400 }); }
   const db = getDb();
   const [seen] = await db.select({ id: webhookDeliveries.id }).from(webhookDeliveries).where(eq(webhookDeliveries.id, delivery)).limit(1);
   if (seen) return Response.json({ accepted: true, duplicate: true });
   await db.insert(webhookDeliveries).values({ id: delivery, event, receivedAt: new Date().toISOString() });
   if (event === "installation" || event === "installation_repositories") {
-    if (payload.action === "deleted" && payload.installation?.id) {
-      await db.update(githubInstallations).set({ status: "removed", updatedAt: new Date().toISOString() }).where(eq(githubInstallations.installationId, String(payload.installation.id)));
+    const installationId=payload.installation?.id?String(payload.installation.id):null;
+    if(installationId&&payload.action==="deleted")await db.update(githubInstallations).set({status:"removed",updatedAt:new Date().toISOString()}).where(eq(githubInstallations.installationId,installationId));
+    if(installationId&&payload.action==="suspended")await db.update(githubInstallations).set({status:"suspended",updatedAt:new Date().toISOString()}).where(eq(githubInstallations.installationId,installationId));
+    if(installationId&&payload.action==="unsuspended")await db.update(githubInstallations).set({status:"active",updatedAt:new Date().toISOString()}).where(eq(githubInstallations.installationId,installationId));
+    if(installationId&&event==="installation_repositories"&&payload.action==="removed"&&payload.repositories_removed?.length){
+      for(const repository of payload.repositories_removed)if(repository.id)await db.update(repositories).set({enabled:false,updatedAt:new Date().toISOString()}).where(and(eq(repositories.installationId,installationId),eq(repositories.githubRepositoryId,String(repository.id))));
     }
   }
   return Response.json({ accepted: true });

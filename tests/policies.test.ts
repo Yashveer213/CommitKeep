@@ -27,6 +27,6 @@ describe("request policy", () => {
 
   it("allows cross-site navigation reads and server calls without browser origin headers", () => {
     expect(isCrossSiteMutation("GET", "https://evil.example", "https://commitkeep.example", "cross-site")).toBe(false);
-    expect(isCrossSiteMutation("POST", null, "https://commitkeep.example", null)).toBe(false);
+    expect(isCrossSiteMutation("POST", null, "https://commitkeep.example", null)).toBe(true);
   });
 });

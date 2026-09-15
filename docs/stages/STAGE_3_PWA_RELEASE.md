@@ -36,6 +36,10 @@ The staging Worker, APAC D1 database, and five-minute scheduler are deployed. Ru
 - Queue retry policy and dead-letter handling.
 - Backup and restoration exercises.
 - Accessibility, browser, load, abuse, authorization, webhook, conflict, and recovery testing.
+
+## Commit-Keep upgrade phases
+
+Phase 1 adds the production scheduling foundation: additive child schedule times, repository automation controls, immutable occurrences, fenced write leases, append-oriented audit events, indexed due dispatch, and Queue/DLQ worker configuration. Existing schedules are retained and receive one child time; a protected reconciliation route calculates their first future UTC occurrence after migration.
 - Incident response runbooks and dependency/security update policy.
 
 ## Exit criteria

@@ -3,7 +3,7 @@ import { getDb } from "@/db";
 import { githubConnectionStates, users } from "@/db/schema";
 import { getGitHubAppConfig } from "@/lib/github-app";
 
-export async function GET() {
+export async function POST() {
   const account = await getChatGPTUser();
   if (!account) return Response.json({ error: "Sign in before connecting GitHub." }, { status: 401 });
 
@@ -24,7 +24,7 @@ export async function GET() {
 
   const target = new URL(`https://github.com/apps/${config.slug}/installations/new`);
   target.searchParams.set("state", state);
-  const response = new Response(null, { status: 302, headers: { Location: target.toString() } });
-  response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
+  const response = Response.json({ redirectUrl: target.toString() });
+  response.headers.append("Set-Cookie", `commitkeep_github_state=${state}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=600`);
   return response;
 }

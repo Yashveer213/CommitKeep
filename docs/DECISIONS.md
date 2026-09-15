@@ -16,4 +16,7 @@ This file records decisions that should remain stable across stages. Change a de
 | PWA cache | Static shell only by default | Prevent private repository data and tokens from entering shared browser caches |
 | Secrets | Runtime secret store; no source/config secrets | Limits credential exposure and simplifies rotation |
 | Automation default | Skip unchanged content | Prevent meaningless contribution activity and history noise |
+| Schedule model | Existing per-repository schedule plus indexed child times | Supports multiple daily times without a three-level hierarchy |
+| Job delivery | Cloudflare Queue with a dead-letter queue | Decouples Cron dispatch from GitHub latency and supports bounded retries |
+| Repository ordering | D1 fenced repository/branch lease | Prevents overlapping writes without adding Durable Objects initially |
 | Frontend hosting | Keep deployment portable; decide at release | Vercel can provide a temporary `*.vercel.app` URL, while a custom domain can be purchased when scaling begins |

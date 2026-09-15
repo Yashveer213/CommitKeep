@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "commitkeep-jobs",
+  "main": "workers/job-consumer.ts",
+  "compatibility_date": "2026-09-15",
+  "vars": { "API_BASE_URL": "https://commitkeep-staging.mkyash40.workers.dev" },
+  "queues": { "consumers": [{ "queue": "commitkeep-staging-jobs", "max_batch_size": 5, "max_batch_timeout": 5, "max_retries": 5, "dead_letter_queue": "commitkeep-staging-jobs-dlq", "max_concurrency": 10 }] },
+  "observability": { "enabled": true }
+}
