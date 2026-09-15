@@ -21,7 +21,7 @@ export async function GET() {
   const installation = await installationForOwner(account.userId);
   if (!installation) return Response.json({ error: "Connect GitHub first." }, { status: 409 });
   const result = await githubInstallationRequest<{ repositories: GitHubRepository[] }>(installation.installationId, "/installation/repositories?per_page=100");
-  const selected = await getDb().select({ githubRepositoryId: repositories.githubRepositoryId }).from(repositories).where(eq(repositories.ownerId, account.userId));
+  const selected = await getDb().select({ githubRepositoryId: repositories.githubRepositoryId }).from(repositories).where(and(eq(repositories.ownerId, account.userId),eq(repositories.enabled,true)));
   const selectedIds = new Set(selected.map((row) => row.githubRepositoryId));
   return Response.json({ repositories: result.repositories.map((repo) => ({ id: String(repo.id), fullName: repo.full_name, defaultBranch: repo.default_branch, private: repo.private, selected: selectedIds.has(String(repo.id)) })) });
 }

@@ -1,0 +1,2 @@
+import {describe,expect,it} from "vitest";import {requireExactOwnedIds} from "../lib/ownership";
+describe("tenant ownership",()=>{it("rejects a foreign ID without identifying its owner",()=>{expect(()=>requireExactOwnedIds(["owned","foreign"],["owned"])).toThrow("RESOURCE_NOT_FOUND")});it("rejects duplicate bulk targets",()=>{expect(()=>requireExactOwnedIds(["owned","owned"],["owned"])).toThrow("DUPLICATE_RESOURCE")});it("accepts only the exact owned set",()=>{expect(requireExactOwnedIds(["a","b"],["b","a","c"])).toEqual(["a","b"])})});

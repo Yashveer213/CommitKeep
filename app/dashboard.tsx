@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Clock3, FileCode2, FolderGit2, GitBranch, GitCommitHorizontal, GitFork, History, Laptop, LoaderCircle, Pause, Play, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
 type Workspace = {
   github: { connected: boolean; installations: { installationId: string; accountLogin: string; status: string }[] };
-  repositories: { id: string; fullName: string; defaultBranch: string; enabled: boolean }[];
-  schedules: { id: string; repositoryId: string; localTime: string; timezone: string; enabled: boolean }[];
+  repositories: { id: string; fullName: string; defaultBranch: string; enabled: boolean; automationStatus?: 'active' | 'paused' }[];
+  schedules: { id: string; repositoryId: string; localTime: string; timezone: string; enabled: boolean; status?: string; times?: {localTime:string;nextRunAt:string|null}[] }[];
   runs: { id: string; source: string; outcome: string; summary: string; commitUrl: string | null; createdAt: string }[];
   drafts: { id: string; repositoryId: string; path: string; preview: string; updatedAt: string }[];
 };
@@ -28,13 +28,21 @@ export default function Dashboard({ account }: { account: string | null }) {
   const [connectionError, setConnectionError] = useState('');
   const [availableRepositories, setAvailableRepositories] = useState<AvailableRepository[]>([]);
   const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<string[]>([]);
-  const [localTime, setLocalTime] = useState('09:00');
+  const [dailyTimes, setDailyTimes] = useState(['09:00']);
+  const [timezone, setTimezone] = useState('UTC');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [mode, setMode] = useState<'update' | 'save' | 'both'>('both');
   const [saving, setSaving] = useState(false);
   const [draftName, setDraftName] = useState('daily-notes');
   const [draftContent, setDraftContent] = useState('');
   const [accountDialog, setAccountDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [pauseDialog, setPauseDialog] = useState<'pause'|'resume'|null>(null);
+  const [automationSelection, setAutomationSelection] = useState<string[]>([]);
+
+  const timezoneOptions = useMemo(() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return ['UTC','Asia/Kolkata','America/New_York','Europe/London']; } }, []);
+  useEffect(() => { queueMicrotask(()=>{const detected=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'; setTimezone(detected); const parts=new Intl.DateTimeFormat('en-CA',{timeZone:detected,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()); const value=(type:string)=>parts.find(part=>part.type===type)?.value??''; setStartDate(`${value('year')}-${value('month')}-${value('day')}`);}); }, []);
 
   useEffect(() => {
     if (!account) return;
@@ -81,12 +89,9 @@ export default function Dashboard({ account }: { account: string | null }) {
   async function connectGitHub() {
     setConnectionError('');
     if (!account) { router.push('/api/auth/github/start'); return; }
-    const response = await fetch('/api/github/connect', { redirect: 'manual' });
-    if (response.type === 'opaqueredirect' || response.status === 302) {
-      router.push('/api/github/connect');
-      return;
-    }
-    const result = await response.json().catch(() => ({ error: 'GitHub connection could not start.' })) as { error?: string };
+    const response = await fetch('/api/github/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const result = await response.json().catch(() => ({ error: 'GitHub connection could not start.' })) as { error?: string; redirectUrl?: string };
+    if(response.ok&&result.redirectUrl){window.location.assign(result.redirectUrl);return;}
     setConnectionError(result.error ?? 'GitHub connection could not start.');
   }
 
@@ -101,15 +106,20 @@ export default function Dashboard({ account }: { account: string | null }) {
   }
 
   async function createSchedule() {
-    const repository = workspace.repositories[0];
-    if (!repository) return;
+    const repositoryIds = workspace.repositories.filter((repository)=>repository.enabled).map((repository)=>repository.id);
+    if (!repositoryIds.length) return;
+    if(new Set(dailyTimes).size!==dailyTimes.length){setConnectionError('Choose a different time for every scheduled run.');return;}
     setSaving(true); setConnectionError('');
-    const response = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repositoryId: repository.id, mode, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
-    const result = await response.json() as { error?: string; id: string };
+    const response = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ repositoryIds, action:'activity_report', mode, times:dailyTimes, timezone, startDate, endDate:endDate||null }) });
+    const result = await response.json() as { error?: string; schedules: {id:string;repositoryId:string;times:string[]}[] };
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The schedule could not be created.'); return; }
-    setWorkspace((current) => ({ ...current, schedules: [...current.schedules.filter((item) => item.repositoryId !== repository.id), { id: result.id, repositoryId: repository.id, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, enabled: true }] }));
+    setWorkspace((current) => ({ ...current, schedules: [...current.schedules.filter((item) => !repositoryIds.includes(item.repositoryId)), ...result.schedules.map(item=>({id:item.id,repositoryId:item.repositoryId,localTime:item.times[0],timezone,enabled:true,status:'active',times:item.times.map(localTime=>({localTime,nextRunAt:null}))}))] }));
     setConnect(false);
+  }
+
+  async function changeAutomation(action:'pause'|'resume'){
+    setSaving(true);setConnectionError('');const response=await fetch(`/api/automation/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repositoryIds:automationSelection})});const result=await response.json() as {error?:string;repositories?:{repositoryId:string;status:'active'|'paused'}[]};setSaving(false);if(!response.ok){setConnectionError(result.error??`Schedules could not be ${action}d.`);return;}setWorkspace(current=>({...current,repositories:current.repositories.map(repository=>{const changed=result.repositories?.find(item=>item.repositoryId===repository.id);return changed?{...repository,automationStatus:changed.status}:repository})}));setPauseDialog(null);setAutomationSelection([]);
   }
 
   async function runDryCheck(repositoryId: string) {
@@ -168,8 +178,8 @@ export default function Dashboard({ account }: { account: string | null }) {
 
         <div className="stage-notice">
           <span className="status-dot" />
-          <p><strong>Stage 2 is underway.</strong> Account-owned history and the secure GitHub App connection are ready for configuration.</p>
-          <span className="stage-label">APPLICATION</span>
+          <p><strong>Automation workspace.</strong> Configure useful scheduled actions and review every result.</p>
+          <span className="stage-label">COMMIT-KEEP</span>
         </div>
 
         <section className="metrics" aria-label="Workspace summary">
@@ -183,14 +193,14 @@ export default function Dashboard({ account }: { account: string | null }) {
               <TabsTrigger value="history"><History />History</TabsTrigger>
               <TabsTrigger value="work"><Laptop />Saved work</TabsTrigger>
             </TabsList>
-            <span className="private-label"><ShieldCheck size={14} />Only you can see this workspace</span>
+            <span className="private-label"><ShieldCheck size={14} />{account?'Only you can see this workspace':'Sign in to open your private workspace'}</span>
           </div>
 
           <div className="view-stack">
             <TabsContent value="repos" forceMount className="workspace-view" inert={tab !== 'repos'} aria-hidden={tab !== 'repos'}>
               <section className="workspace-grid">
                 <div className={`panel ${workspace.repositories.length ? 'repository-panel' : 'empty'}`}>
-                  {workspace.repositories.length ? <><div className="panel-heading"><div><span className="eyebrow">CONNECTED</span><h2>Your repositories</h2></div><button className="secondary-button" onClick={() => { setConnect(true); setStep(2); }}>Manage</button></div><div className="connected-repositories">{workspace.repositories.map((repository) => <article key={repository.id}><div className="repository-name"><FolderGit2 size={18} /><span><strong>{repository.fullName}</strong><small>{repository.defaultBranch}</small></span></div><button className="text-button" onClick={() => runDryCheck(repository.id)}>Run access check<ArrowRight size={14} /></button></article>)}</div></> : <>
+                  {workspace.repositories.length ? <><div className="panel-heading"><div><span className="eyebrow">CONNECTED</span><h2>Your repositories</h2></div><div className="panel-actions"><button className="secondary-button" onClick={() => { setConnect(true); setStep(2); }}>Manage</button><button className="secondary-button" onClick={()=>{setPauseDialog('pause');setAutomationSelection([])}}><Pause size={15}/>Pause schedules</button></div></div><div className="connected-repositories">{workspace.repositories.map((repository) => <article key={repository.id}><div className="repository-name"><FolderGit2 size={18} /><span><strong>{repository.fullName}</strong><small>{repository.defaultBranch} · {repository.automationStatus==='paused'?'Schedules paused':'Schedules active'}</small></span></div><button className="text-button" onClick={() => runDryCheck(repository.id)}>Run access check<ArrowRight size={14} /></button></article>)}</div></> : <>
                   <div className="repo-icon">{loading ? <LoaderCircle className="spin" size={27} /> : <FolderGit2 size={29} strokeWidth={1.25} />}</div>
                   <h2>{workspace.github.connected ? 'Choose your first repository' : 'Connect your work'}</h2>
                   <p>{workspace.github.connected ? `GitHub account @${workspace.github.installations[0]?.accountLogin} is connected. Repository selection is the next step.` : 'Install CommitKeep only on the repositories you want it to manage.'}</p>
@@ -233,7 +243,7 @@ export default function Dashboard({ account }: { account: string | null }) {
           </div>
         </Tabs>
 
-        <footer><span><GitCommitHorizontal size={15} />{workspace.runs.length ? `${workspace.runs.length} recorded runs` : 'Nothing committed yet.'}</span><span>CommitKeep<span className="footer-divider">/</span>Stage 2 · Application</span></footer>
+        <footer><span><GitCommitHorizontal size={15} />{workspace.runs.length ? `${workspace.runs.length} recorded runs` : 'Nothing committed yet.'}</span><span>Commit-Keep<span className="footer-divider">/</span>Automation workspace</span></footer>
       </main>
 
       <Dialog open={connect} onOpenChange={setConnect}>
@@ -252,20 +262,23 @@ export default function Dashboard({ account }: { account: string | null }) {
 
           {step === 1 && <div className="connection-note"><ShieldCheck size={19} /><div><h3>Least-privilege access</h3><p>CommitKeep stores the installation ID. Temporary GitHub credentials are created only when a job runs.</p></div></div>}
           {step === 2 && <div className="repository-list">{availableRepositories.length ? availableRepositories.map((repository) => <label key={repository.id} className="repository-choice"><input type="checkbox" checked={selectedRepositoryIds.includes(repository.id)} onChange={(event) => setSelectedRepositoryIds((current) => event.target.checked ? [...current, repository.id] : current.filter((id) => id !== repository.id))} /><span><strong>{repository.fullName}</strong><small>{repository.private ? 'Private' : 'Public'} · {repository.defaultBranch}</small></span></label>) : <div className="repository-picker"><LoaderCircle className="spin" size={17} />Loading approved repositories…</div>}</div>}
-          {step === 3 && <div className="setup-fields"><label>Daily action<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="both">Update content and save work</option><option value="update">Update content</option><option value="save">Save pending work</option></select></label><label>Run time<input type="time" value={localTime} onChange={(event) => setLocalTime(event.target.value)} /></label><label>Timezone<input value={Intl.DateTimeFormat().resolvedOptions().timeZone} readOnly /></label></div>}
+          {step === 3 && <div className="setup-fields"><div className="schedule-summary"><strong>Applies to {workspace.repositories.filter(repository=>repository.enabled).length} repositories</strong><span>{workspace.repositories.filter(repository=>repository.enabled).map(repository=>repository.fullName).join(', ')}</span></div><label>Daily action<select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}><option value="update">Update repository activity</option><option value="both">Update content and save available work</option><option value="save">Save pending work when available</option></select></label><label>Scheduled runs per day<select value={dailyTimes.length} onChange={(event)=>{const count=Number(event.target.value);const defaults=['09:00','11:00','13:00','15:00','17:00','19:00','21:00','23:00'];setDailyTimes(current=>Array.from({length:count},(_,index)=>current[index]??defaults[index]))}}>{Array.from({length:8},(_,index)=><option key={index+1} value={index+1}>{index+1}</option>)}</select></label><div className="time-grid">{dailyTimes.map((time,index)=><label key={index}>Run {index+1} time<input type="time" value={time} aria-invalid={dailyTimes.indexOf(time)!==index} onChange={(event)=>setDailyTimes(current=>current.map((value,item)=>item===index?event.target.value:value))}/></label>)}</div><label>Timezone<input list="commitkeep-timezones" value={timezone} onChange={(event)=>setTimezone(event.target.value)} autoComplete="off"/><datalist id="commitkeep-timezones">{timezoneOptions.map(zone=><option key={zone} value={zone}/>)}</datalist></label><div className="date-grid"><label>Start date (inclusive)<input type="date" required value={startDate} onChange={(event)=>setStartDate(event.target.value)}/></label><label>End date (optional, inclusive)<input type="date" min={startDate} value={endDate} onChange={(event)=>setEndDate(event.target.value)}/></label></div><div className="schedule-summary" aria-live="polite"><strong>Schedule summary</strong><span>{dailyTimes.slice().sort().join(', ')} · {timezone}</span><span>Starts {startDate||'when a start date is chosen'}{endDate?` and ends ${endDate}`:' with no end date'}.</span><small>Commit-Keep runs the selected action at these times. A commit is created only when repository content actually changes. Times already passed today are not backfilled.</small></div></div>}
 
           {connectionError && <p className="form-error" role="alert">{connectionError}</p>}
           <div className="dialog-actions">
             {step > 1 && <button className="secondary-button" onClick={() => setStep(step - 1)}>Back</button>}
             {step === 1 ? <button className="primary" onClick={connectGitHub}>{workspace.github.connected ? 'Connected' : 'Continue with GitHub'}<ArrowRight size={16} /></button> :
              step < 3 ? <button className="primary" disabled={!selectedRepositoryIds.length || saving} onClick={saveRepositories}>{saving ? 'Saving…' : 'Continue'}<ArrowRight size={16} /></button> :
-             <button className="primary" disabled={saving || !workspace.repositories.length} onClick={createSchedule}>{saving ? 'Creating…' : 'Create schedule'}<ArrowRight size={16} /></button>}
+             <button className="primary" disabled={saving || !workspace.repositories.length || !startDate || !timezone || new Set(dailyTimes).size!==dailyTimes.length || Boolean(endDate&&endDate<startDate)} onClick={createSchedule}>{saving ? 'Creating…' : 'Create schedules'}<ArrowRight size={16} /></button>}
           </div>
           <p className="dialog-footnote">No repository content is changed during setup.</p>
         </DialogContent>
       </Dialog>
       <Dialog open={accountDialog} onOpenChange={setAccountDialog}>
         <DialogContent className="connect-dialog"><span className="dialog-icon"><Trash2 size={22} /></span><DialogTitle>Delete CommitKeep account</DialogTitle><DialogDescription>This revokes CommitKeep’s GitHub installations and permanently removes your repositories, schedules, drafts, and history from CommitKeep.</DialogDescription><div className="setup-fields"><label>Type DELETE to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /></label></div>{connectionError && <p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={() => setAccountDialog(false)}>Cancel</button><button className="primary" disabled={saving || deleteConfirmation !== 'DELETE'} onClick={deleteAccount}>{saving ? 'Deleting…' : 'Delete account'}</button></div></DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(pauseDialog)} onOpenChange={(open)=>{if(!open){setPauseDialog(null);setAutomationSelection([])}}}>
+        <DialogContent className="connect-dialog"><span className="dialog-icon">{pauseDialog==='pause'?<Pause size={22}/>:<Play size={22}/>}</span><DialogTitle>{pauseDialog==='pause'?'Pause schedules':'Resume schedules'}</DialogTitle><DialogDescription>Select repositories. Pausing keeps GitHub access, settings, and history intact.</DialogDescription><div className="repository-list">{workspace.repositories.filter(repository=>pauseDialog==='pause'?repository.automationStatus!=='paused':repository.automationStatus==='paused').map(repository=><label className="repository-choice" key={repository.id}><input type="checkbox" checked={automationSelection.includes(repository.id)} onChange={(event)=>setAutomationSelection(current=>event.target.checked?[...current,repository.id]:current.filter(id=>id!==repository.id))}/><span><strong>{repository.fullName}</strong><small>{workspace.schedules.filter(schedule=>schedule.repositoryId===repository.id&&schedule.enabled).length} schedules affected</small></span></label>)}</div><p className="dialog-footnote">{workspace.schedules.filter(schedule=>automationSelection.includes(schedule.repositoryId)&&schedule.enabled).length} active schedules selected</p>{connectionError&&<p className="form-error" role="alert">{connectionError}</p>}<div className="dialog-actions"><button className="secondary-button" onClick={()=>setPauseDialog(null)}>Cancel</button><button className="primary" disabled={!automationSelection.length||saving} onClick={()=>changeAutomation(pauseDialog??'pause')}>{saving?'Saving…':pauseDialog==='pause'?'Pause schedules':'Resume schedules'}</button></div></DialogContent>
       </Dialog>
     </div>
   );

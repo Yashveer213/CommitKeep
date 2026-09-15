@@ -142,6 +142,14 @@ export const auditEvents = sqliteTable("audit_events", {
   createdAt: text("created_at").notNull(),
 }, (table) => [index("audit_events_owner_created_idx").on(table.ownerId, table.createdAt)]);
 
+export const scheduleRequests = sqliteTable("schedule_requests", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestHash: text("request_hash").notNull(),
+  responseJson: text("response_json").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [uniqueIndex("schedule_requests_owner_id_unique").on(table.ownerId, table.id)]);
+
 export const drafts = sqliteTable("drafts", {
   id: text("id").primaryKey(),
   ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),

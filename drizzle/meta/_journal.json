@@ -50,6 +50,13 @@
       "when": 1789454723112,
       "tag": "0006_omniscient_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789455150752,
+      "tag": "0007_nervous_boom_boom",
+      "breakpoints": true
     }
   ]
 }
