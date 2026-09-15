@@ -25,9 +25,9 @@ Ship an installable, observable application whose server-side automations keep r
 - Cross-site mutation rejection and a verified account-deletion path that revokes GitHub access before erasing owned data.
 - Automated policy tests for timezone scheduling, deterministic report content, and cross-site request decisions.
 
-Stage 3 implementation is complete. Before public release, the manual device, accessibility, load, recovery, and live GitHub test matrix in the release runbook must pass against deployed staging infrastructure.
+Stage 3 implementation and staging validation are complete. Before public release, the remaining manual device, accessibility, load, recovery, and cross-account isolation checks in the release runbook must pass against deployed staging infrastructure.
 
-The staging Worker, APAC D1 database, and five-minute scheduler are deployed. Runtime headers, private cache behavior, authentication rejection, manifest delivery, and offline document delivery have been verified. GitHub App and cross-account live tests remain release gates.
+The staging Worker, APAC D1 database, and five-minute scheduler are deployed. Runtime headers, private cache behavior, authentication rejection, manifest delivery, offline document delivery, GitHub sign-in, selected-repository installation, dry runs, duplicate schedule prevention, and a real scheduled commit have been verified. Cross-account isolation and the full device/load matrix remain public-launch gates.
 
 ## Reliability and release scope
 

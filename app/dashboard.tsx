@@ -108,7 +108,7 @@ export default function Dashboard({ account }: { account: string | null }) {
     const result = await response.json() as { error?: string; id: string };
     setSaving(false);
     if (!response.ok) { setConnectionError(result.error ?? 'The schedule could not be created.'); return; }
-    setWorkspace((current) => ({ ...current, schedules: [...current.schedules, { id: result.id, repositoryId: repository.id, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, enabled: true }] }));
+    setWorkspace((current) => ({ ...current, schedules: [...current.schedules.filter((item) => item.repositoryId !== repository.id), { id: result.id, repositoryId: repository.id, localTime, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, enabled: true }] }));
     setConnect(false);
   }
 

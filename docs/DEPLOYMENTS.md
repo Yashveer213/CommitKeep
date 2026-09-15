@@ -18,4 +18,4 @@ Verified after deployment:
 - Unauthenticated scheduler requests return HTTP 401.
 - A remote D1 export was restored into a separate APAC recovery database; all application tables and four migration records were verified before the temporary recovery database was deleted.
 
-GitHub App secrets and live repository tests remain pending until the GitHub App registration is complete.
+The GitHub App is registered as `commitkeep-by-yashveer`, installed with selected-repository access, and connected to staging. On September 15, 2026, an authenticated scheduler tick committed `.commitkeep/activity.md` to `Yashveer213/ENGINEERING_BIBLE`. The corresponding run is stored in the account-owned history. Schedule creation is idempotent per owner, repository, and rule, and the database rejects duplicate schedules.

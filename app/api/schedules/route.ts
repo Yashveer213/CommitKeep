@@ -16,7 +16,16 @@ export async function POST(request: Request) {
   const [repository] = await db.select().from(repositories).where(and(eq(repositories.id, parsed.data.repositoryId), eq(repositories.ownerId, account.userId), eq(repositories.enabled, true))).limit(1);
   if (!repository) return Response.json({ error: "Repository access is unavailable." }, { status: 404 });
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
-  await db.insert(schedules).values({ id, ownerId: account.userId, repositoryId: repository.id, rule: "activity_report", mode: parsed.data.mode, localTime: parsed.data.localTime, timezone: parsed.data.timezone, enabled: true, nextRunAt: null, createdAt: now, updatedAt: now });
-  return Response.json({ id }, { status: 201 });
+  const [existing] = await db.select({ id: schedules.id }).from(schedules).where(and(
+    eq(schedules.ownerId, account.userId),
+    eq(schedules.repositoryId, repository.id),
+    eq(schedules.rule, "activity_report"),
+  )).limit(1);
+  const id = existing?.id ?? crypto.randomUUID();
+
+  await db.insert(schedules).values({ id, ownerId: account.userId, repositoryId: repository.id, rule: "activity_report", mode: parsed.data.mode, localTime: parsed.data.localTime, timezone: parsed.data.timezone, enabled: true, nextRunAt: null, createdAt: now, updatedAt: now }).onConflictDoUpdate({
+    target: [schedules.ownerId, schedules.repositoryId, schedules.rule],
+    set: { mode: parsed.data.mode, localTime: parsed.data.localTime, timezone: parsed.data.timezone, enabled: true, nextRunAt: null, updatedAt: now },
+  });
+  return Response.json({ id }, { status: existing ? 200 : 201 });
 }

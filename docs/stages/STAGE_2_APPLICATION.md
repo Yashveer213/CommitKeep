@@ -29,7 +29,7 @@ Completed in the automation increment:
 - Idempotent daily execution, branch-head rechecks, unchanged-content skips, and conflict outcomes.
 - Account-owned web drafts under the fixed `.commitkeep/notes/` path, with size validation, preview-version checks, explicit commits, and saved-work audit records.
 
-Live validation remains blocked on GitHub App credentials and a dedicated test repository. It is a release gate rather than an unfinished code path.
+Live validation passed in staging on September 15, 2026. GitHub OAuth created a verified account session, the GitHub App installation exposed only the selected repository, repository access and branch-head checks passed, and the scheduler created a bounded commit in the dedicated repository. The audit run records its source, outcome, branch, commit URL, and changed path.
 
 ## Workstreams
 

@@ -1,8 +1,8 @@
 # CommitKeep
 
-CommitKeep is a planned installable web app that connects to selected GitHub repositories, performs useful scheduled content updates, saves pending work, and keeps an account-owned record of every run and commit.
+CommitKeep is an installable web app that connects to selected GitHub repositories, performs useful scheduled content updates, saves pending work, and keeps an account-owned record of every run and commit.
 
-The repository contains the completed **Stage 1 UI/UX milestone** and the first **Stage 2 application foundation**. Stage 2 now includes the account-owned data model, GitHub App installation handshake, workspace API, database migration, and three-step setup interface. Repository synchronization and automation execution are the next increments.
+Stages 1–3 are implemented. The staging system includes GitHub OAuth, repository-scoped GitHub App installation, account-owned history, daily schedules, bounded repository writes, saved-work commits, a Cloudflare scheduler, and PWA support. A live scheduled commit was verified on September 15, 2026.
 
 ## Project status
 
@@ -10,7 +10,7 @@ The repository contains the completed **Stage 1 UI/UX milestone** and the first 
 | --- | --- | --- |
 | [Stage 1](docs/stages/STAGE_1_UI_UX.md) | Product design and interactive interface | Complete |
 | [Stage 2](docs/stages/STAGE_2_APPLICATION.md) | Accounts, GitHub integration, automation, and history | Implementation complete; live validation pending |
-| [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | Implementation complete; release validation pending |
+| [Stage 3](docs/stages/STAGE_3_PWA_RELEASE.md) | PWA, reliability, security validation, and release | Complete in staging; public launch gates remain |
 
 ## Run locally
 

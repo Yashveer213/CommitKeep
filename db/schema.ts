@@ -65,7 +65,10 @@ export const schedules = sqliteTable("schedules", {
   nextRunAt: text("next_run_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-}, (table) => [index("schedules_owner_id_idx").on(table.ownerId)]);
+}, (table) => [
+  uniqueIndex("schedules_owner_repository_rule_unique").on(table.ownerId, table.repositoryId, table.rule),
+  index("schedules_owner_id_idx").on(table.ownerId),
+]);
 
 export const drafts = sqliteTable("drafts", {
   id: text("id").primaryKey(),
