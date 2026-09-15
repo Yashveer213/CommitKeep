@@ -25,3 +25,5 @@ This file records decisions that should remain stable across stages. Change a de
 - Scheduled execution uses a unique Queue delivery attempt ID for both the occurrence claim and repository lease owner.
 - Schedule-time edits preserve child row identities, soft-disable removed times, and invalidate queued work from the prior schedule version.
 - The released daily-report action uses mode `update`; legacy `save` and `both` schedule modes migrate to `update` because the automatic worker never executed saved drafts.
+
+- Activity journal is a separate, default-off action. It is limited to one run per day, writes only to `.commitkeep/log/YYYY-MM.md`, embeds occurrence identity, discloses that Commit-Keep generated the entry, blocks forks, archives, and read-only repositories, and requires an extra acknowledgement for organization-owned repositories.

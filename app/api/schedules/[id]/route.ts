@@ -29,6 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!isValidTimezone(parsed.data.timezone)) return Response.json({ error: "Choose a valid IANA timezone." }, { status: 400 });
   const row = (await getDb().select().from(schedules).where(and(eq(schedules.id, id), eq(schedules.ownerId, account.userId))).limit(1))[0];
   if (!row) return Response.json({ error: "Schedule not found." }, { status: 404 });
+  if (row.rule==="activity_journal"&&times.length!==1) return Response.json({ error: "Activity journal supports one scheduled run per day.", code: "JOURNAL_DAILY_LIMIT" }, { status: 400 });
   if (row.version !== parsed.data.expectedVersion) return Response.json({ error: "The schedule changed. Reload and try again.", code: "SCHEDULE_VERSION_CONFLICT" }, { status: 409 });
   if (!env.DB) return Response.json({ error: "Database unavailable." }, { status: 503 });
 

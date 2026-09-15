@@ -60,7 +60,7 @@ export const schedules = sqliteTable("schedules", {
   id: text("id").primaryKey(),
   ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   repositoryId: text("repository_id").notNull().references(() => repositories.id, { onDelete: "cascade" }),
-  rule: text("rule", { enum: ["activity_report"] }).notNull(),
+  rule: text("rule", { enum: ["activity_report", "activity_journal"] }).notNull(),
   mode: text("mode", { enum: ["update", "save", "both"] }).notNull(),
   localTime: text("local_time").notNull(),
   timezone: text("timezone").notNull(),
@@ -72,6 +72,8 @@ export const schedules = sqliteTable("schedules", {
   version: integer("version").notNull().default(1),
   pausedAt: text("paused_at"),
   pausedBy: text("paused_by"),
+  journalAcknowledgedAt: text("journal_acknowledged_at"),
+  organizationJournalEnabled: integer("organization_journal_enabled", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [

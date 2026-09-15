@@ -36,4 +36,10 @@ describe("delivery identity invariant", () => {
     expect(execution).toContain("execution_attempt_id=?");
     expect(execution).toContain("lease_owner=? AND fencing_token=?");
   });
+  it("dispatches cron through a private service binding", () => {
+    const scheduler=readFileSync(new URL("../workers/scheduler.ts",import.meta.url),"utf8");
+    const config=readFileSync(new URL("../wrangler.scheduler.jsonc",import.meta.url),"utf8");
+    expect(scheduler).toContain("env.APP.fetch");
+    expect(config).toContain('"binding": "APP"');
+  });
 });

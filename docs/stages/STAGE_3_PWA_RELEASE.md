@@ -51,3 +51,7 @@ Phase 2 adds atomic multi-repository schedule creation with request idempotency,
 - Automations run independently of browser/PWA state.
 - Load targets and service-level objectives in the construction plan are met.
 - Security and recovery release gates are signed off.
+
+## Activity journal release
+
+The optional activity journal is distinct from the daily metadata report. It never creates empty commits or claims source-code work, and the product does not promise GitHub contribution credit. Existing PWA assets and privacy-aware service-worker behavior remain part of the release gate.

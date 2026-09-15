@@ -12,6 +12,12 @@
 - Three-phase upgrade application version: `c672babd-7fe4-4ce6-95a4-3906fe3b0f2c`
 - Queue consumer version: `0204b5af-c096-4224-a2f6-356f0a23b4f3`
 - Scheduler version: `2488762d-4b7e-418a-9d9c-4031544da179`
+- Release application version: `a9bb197b-8fe9-4418-857c-225f748dd8b7`
+- Release queue consumer version: `af166796-649b-4826-801a-8d1a13cc73a7`
+- Release scheduler version: `bb1b5656-9bbb-4a1e-9985-55b5b2a27fdd`
+
+The scheduler now invokes the application through a private Cloudflare service binding. The previous public `workers.dev` hop returned 404 from Worker-to-Worker cron execution even though direct browser requests reached the route.
+The first observed service-bound cron completed successfully and the application recorded an HTTP-successful internal tick. Existing overdue times were moved to their next calendar occurrence before enabling this validation, so no user repository write was triggered.
 
 The application and scheduler share a randomly generated `SCHEDULER_SECRET` stored through Cloudflare Workers secrets. The value is not stored in the repository or local environment files.
 
