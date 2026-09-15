@@ -72,3 +72,6 @@ Live validation passed in staging on September 15, 2026. GitHub OAuth created a 
 - A branch-head conflict stops safely and is visible in history.
 - Two test users cannot read or mutate each other's records.
 - GitHub access revocation takes effect without manual cleanup.
+# Release hardening
+
+The scheduling path now uses additive dispatch and execution fencing. Due occurrences are claimed before enqueue, Queue deliveries receive unique attempt identities, and removed schedule times are retained as disabled records so run history remains valid.

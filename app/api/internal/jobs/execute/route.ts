@@ -2,12 +2,12 @@ import { z } from "zod";
 import { env } from "cloudflare:workers";
 import { executeScheduledOccurrence } from "@/lib/scheduled-execution";
 
-const schema=z.object({occurrenceId:z.string().min(8).max(300),runId:z.string().min(8).max(320)}).strict();
+const schema=z.object({occurrenceId:z.string().min(8).max(300),runId:z.string().min(8).max(320),attemptId:z.string().min(8).max(400)}).strict();
 export async function POST(request:Request){
-  const secret=process.env.SCHEDULER_SECRET;if(!secret)return Response.json({error:"Job execution is not configured."},{status:503});
+  const secret=env.SCHEDULER_SECRET;if(!secret)return Response.json({error:"Job execution is not configured."},{status:503});
   if(request.headers.get("authorization")!==`Bearer ${secret}`)return Response.json({error:"Unauthorized."},{status:401});
   const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return Response.json({error:"Invalid job identifier."},{status:400});
-  try{return Response.json(await executeScheduledOccurrence(parsed.data.occurrenceId,parsed.data.runId));}catch(error){
+  try{return Response.json(await executeScheduledOccurrence(parsed.data.occurrenceId,parsed.data.runId,parsed.data.attemptId));}catch(error){
     const code=error instanceof Error?error.message:"JOB_FAILED";const transient=code==="REPOSITORY_BUSY"||/^GITHUB_.*_(429|5\d\d)$/.test(code);const attempt=Math.max(1,Number(request.headers.get("x-queue-attempt")??"1"));
     if(!transient||attempt>=5){const now=new Date().toISOString();await env.DB?.batch([
       env.DB.prepare("UPDATE runs SET outcome='failed',summary='Scheduled work could not be completed.',error_code=?,completed_at=? WHERE id=? AND occurrence_id=? AND completed_at IS NULL").bind(code,now,parsed.data.runId,parsed.data.occurrenceId),

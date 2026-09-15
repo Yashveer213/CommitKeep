@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { createActivityReport } from "@/lib/automation-policy";
 import { githubInstallationFetch, githubInstallationRequest } from "@/lib/github-app";
 
-type JobRow = { occurrence_id:string; occurrence_status:string; schedule_id:string; schedule_version:number; current_version:number; schedule_status:string; start_date:string; end_date:string|null; local_date:string; local_time:string; repository_id:string; owner_id:string; full_name:string; default_branch:string; repository_enabled:number; installation_id:string; installation_status:string; automation_status:string|null };
+type JobRow = { occurrence_id:string; occurrence_status:string; execution_attempt_id:string|null; schedule_id:string; schedule_version:number; current_version:number; schedule_status:string; start_date:string; end_date:string|null; local_date:string; local_time:string; repository_id:string; owner_id:string; full_name:string; default_branch:string; repository_enabled:number; installation_id:string; installation_status:string; automation_status:string|null };
 type ContentFile={sha:string;content?:string;encoding?:string};
 function database(){if(!env.DB)throw new Error("DATABASE_NOT_CONFIGURED");return env.DB;}
 
@@ -25,30 +25,32 @@ async function finish(row:JobRow, runId:string, outcome:string, summary:string, 
 }
 
 async function effectiveState(occurrenceId:string){
-  return database().prepare(`SELECT o.id occurrence_id,o.status occurrence_status,o.schedule_id,o.schedule_version,s.version current_version,s.status schedule_status,s.start_date,s.end_date,o.local_date,o.local_time,r.id repository_id,r.owner_id,r.full_name,r.default_branch,r.enabled repository_enabled,r.installation_id,i.status installation_status,c.status automation_status
+  return database().prepare(`SELECT o.id occurrence_id,o.status occurrence_status,o.execution_attempt_id,o.schedule_id,o.schedule_version,s.version current_version,s.status schedule_status,s.start_date,s.end_date,o.local_date,o.local_time,r.id repository_id,r.owner_id,r.full_name,r.default_branch,r.enabled repository_enabled,r.installation_id,i.status installation_status,c.status automation_status
     FROM scheduled_occurrences o JOIN schedules s ON s.id=o.schedule_id JOIN repositories r ON r.id=o.repository_id AND r.owner_id=o.owner_id JOIN github_installations i ON i.installation_id=r.installation_id AND i.owner_id=o.owner_id LEFT JOIN repository_automation_controls c ON c.repository_id=r.id AND c.owner_id=o.owner_id WHERE o.id=?`).bind(occurrenceId).first<JobRow>();
 }
 
-async function acquireLease(row:JobRow,runId:string){
+async function acquireLease(row:JobRow,attemptId:string){
   const now=new Date();const expires=new Date(now.getTime()+120_000).toISOString();
-  const db=database();await db.prepare(`INSERT INTO repository_write_leases(repository_id,branch,lease_owner,fencing_token,lease_expires_at,updated_at) VALUES(?,?,?,1,?,?) ON CONFLICT(repository_id,branch) DO UPDATE SET lease_owner=excluded.lease_owner,fencing_token=repository_write_leases.fencing_token+1,lease_expires_at=excluded.lease_expires_at,updated_at=excluded.updated_at WHERE repository_write_leases.lease_expires_at<=?`).bind(row.repository_id,row.default_branch,runId,expires,now.toISOString(),now.toISOString()).run();
+  const db=database();await db.prepare(`INSERT INTO repository_write_leases(repository_id,branch,lease_owner,fencing_token,lease_expires_at,updated_at) VALUES(?,?,?,1,?,?) ON CONFLICT(repository_id,branch) DO UPDATE SET lease_owner=excluded.lease_owner,fencing_token=repository_write_leases.fencing_token+1,lease_expires_at=excluded.lease_expires_at,updated_at=excluded.updated_at WHERE repository_write_leases.lease_expires_at<=?`).bind(row.repository_id,row.default_branch,attemptId,expires,now.toISOString(),now.toISOString()).run();
   const lease=await db.prepare("SELECT lease_owner,fencing_token FROM repository_write_leases WHERE repository_id=? AND branch=?").bind(row.repository_id,row.default_branch).first<{lease_owner:string;fencing_token:number}>();
-  if(!lease||lease.lease_owner!==runId)throw new Error("REPOSITORY_BUSY");return lease.fencing_token;
+  if(!lease||lease.lease_owner!==attemptId)throw new Error("REPOSITORY_BUSY");return lease.fencing_token;
 }
 
-async function leaseValid(row:JobRow,runId:string,token:number){
-  const lease=await database().prepare("SELECT 1 ok FROM repository_write_leases WHERE repository_id=? AND branch=? AND lease_owner=? AND fencing_token=? AND lease_expires_at>?").bind(row.repository_id,row.default_branch,runId,token,new Date().toISOString()).first();return Boolean(lease);
+async function leaseValid(row:JobRow,attemptId:string,token:number){
+  const lease=await database().prepare("SELECT 1 ok FROM repository_write_leases WHERE repository_id=? AND branch=? AND lease_owner=? AND fencing_token=? AND lease_expires_at>?").bind(row.repository_id,row.default_branch,attemptId,token,new Date().toISOString()).first();return Boolean(lease);
 }
 
-export async function executeScheduledOccurrence(occurrenceId:string,runId:string){
+export async function executeScheduledOccurrence(occurrenceId:string,runId:string,attemptId:string){
   const existing=await database().prepare("SELECT outcome,completed_at FROM runs WHERE id=? AND occurrence_id=?").bind(runId,occurrenceId).first<{outcome:string;completed_at:string|null}>();
   if(!existing)throw new Error("RUN_NOT_FOUND");if(existing.completed_at)return {outcome:existing.outcome,duplicate:true};
+  const claimNow=new Date().toISOString();const claimExpiry=new Date(Date.now()+120_000).toISOString();const claim=await database().prepare("UPDATE scheduled_occurrences SET status='running',execution_attempt_id=?,execution_expires_at=?,attempts=attempts+1,updated_at=? WHERE id=? AND (status='queued' OR (status='running' AND execution_expires_at<=?))").bind(attemptId,claimExpiry,claimNow,occurrenceId,claimNow).run();
+  if(!claim.meta.changes)throw new Error("OCCURRENCE_ALREADY_CLAIMED");
   let row=await effectiveState(occurrenceId);if(!row)throw new Error("RUN_NOT_AUTHORIZED");
   if(row.schedule_version!==row.current_version)return finish(row,runId,"skipped_stale_version","The schedule changed after this run was queued.");
   if(row.schedule_status==="expired"||row.local_date<row.start_date||(row.end_date&&row.local_date>row.end_date))return finish(row,runId,"skipped_expired","The schedule is outside its active date range.");
   if(row.schedule_status!=="active"||row.automation_status==="paused")return finish(row,runId,"skipped_paused","Repository schedules were paused before execution.");
   if(!row.repository_enabled||row.installation_status!=="active")return finish(row,runId,"revoked","Repository or installation access is no longer active.",{errorCode:"ACCESS_REVOKED"});
-  const fencingToken=await acquireLease(row,runId);
+  const fencingToken=await acquireLease(row,attemptId);
   await database().prepare("UPDATE runs SET outcome='running',summary='Preparing the scheduled repository action.' WHERE id=? AND completed_at IS NULL").bind(runId).run();
   const encoded=row.full_name.split("/").map(encodeURIComponent).join("/");const path=".commitkeep/activity.md";
   try{
@@ -62,7 +64,7 @@ export async function executeScheduledOccurrence(occurrenceId:string,runId:strin
     const refreshed=await effectiveState(occurrenceId);if(!refreshed)return finish(row,runId,"revoked","Repository authorization disappeared before the write.",{errorCode:"ACCESS_REVOKED"});row=refreshed;if(row.schedule_version!==row.current_version)return finish(row,runId,"skipped_stale_version","The schedule changed before the write.");
     if(row.schedule_status!=="active"||row.automation_status==="paused")return finish(row,runId,"skipped_paused","Repository schedules were paused before the write.");
     if(row.installation_status!=="active"||!row.repository_enabled)return finish(row,runId,"revoked","Repository access was revoked before the write.");
-    if(!await leaseValid(row,runId,fencingToken))throw new Error("LEASE_FENCE_LOST");
+    if(row.execution_attempt_id!==attemptId||!await leaseValid(row,attemptId,fencingToken))throw new Error("LEASE_FENCE_LOST");
     const rechecked=await githubInstallationRequest<{object:{sha:string}}>(row.installation_id,`/repos/${encoded}/git/ref/heads/${encodeURIComponent(row.default_branch)}`);
     if(rechecked.object.sha!==head.object.sha)return finish(row,runId,"conflicted","The branch changed before the scheduled write.",{baseSha:head.object.sha,errorCode:"BRANCH_HEAD_CHANGED"});
     let write:Response;
@@ -74,6 +76,6 @@ export async function executeScheduledOccurrence(occurrenceId:string,runId:strin
     }
     const result=await write.json() as {commit:{sha:string;html_url:string}};return finish(row,runId,"committed","Updated the bounded scheduled repository activity report.",{baseSha:head.object.sha,resultSha:result.commit.sha,commitUrl:result.commit.html_url,paths:[path]});
   }finally{
-    await database().prepare("DELETE FROM repository_write_leases WHERE repository_id=? AND branch=? AND lease_owner=? AND fencing_token=?").bind(row.repository_id,row.default_branch,runId,fencingToken).run();
+    await database().prepare("DELETE FROM repository_write_leases WHERE repository_id=? AND branch=? AND lease_owner=? AND fencing_token=?").bind(row.repository_id,row.default_branch,attemptId,fencingToken).run();
   }
 }

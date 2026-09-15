@@ -20,3 +20,8 @@ This file records decisions that should remain stable across stages. Change a de
 | Job delivery | Cloudflare Queue with a dead-letter queue | Decouples Cron dispatch from GitHub latency and supports bounded retries |
 | Repository ordering | D1 fenced repository/branch lease | Prevents overlapping writes without adding Durable Objects initially |
 | Frontend hosting | Keep deployment portable; decide at release | Vercel can provide a temporary `*.vercel.app` URL, while a custom domain can be purchased when scaling begins |
+# Release safety decisions (2026-09-15)
+
+- Scheduled execution uses a unique Queue delivery attempt ID for both the occurrence claim and repository lease owner.
+- Schedule-time edits preserve child row identities, soft-disable removed times, and invalidate queued work from the prior schedule version.
+- The released daily-report action uses mode `update`; legacy `save` and `both` schedule modes migrate to `update` because the automatic worker never executed saved drafts.

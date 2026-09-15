@@ -83,6 +83,8 @@ export const scheduleTimes = sqliteTable("schedule_times", {
   nextRunAt: text("next_run_at"),
   lastOccurrenceId: text("last_occurrence_id"),
   status: text("status", { enum: ["active", "expired", "disabled"] }).notNull().default("active"),
+  scheduleVersion: integer("schedule_version").notNull().default(1),
+  disabledAt: text("disabled_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (table) => [
@@ -115,6 +117,10 @@ export const scheduledOccurrences = sqliteTable("scheduled_occurrences", {
   attempts: integer("attempts").notNull().default(0),
   claimedAt: text("claimed_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  dispatchOwner: text("dispatch_owner"),
+  dispatchExpiresAt: text("dispatch_expires_at"),
+  executionAttemptId: text("execution_attempt_id"),
+  executionExpiresAt: text("execution_expires_at"),
 }, (table) => [
   uniqueIndex("scheduled_occurrences_identity_unique").on(table.scheduleId, table.scheduleVersion, table.localDate, table.localTime),
   index("scheduled_occurrences_status_scheduled_idx").on(table.status, table.scheduledFor),
